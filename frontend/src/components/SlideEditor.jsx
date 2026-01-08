@@ -21,7 +21,7 @@ import {
   Chip,
 } from '@mui/material';
 import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon } from '@mui/icons-material';
-import { useSlide } from '../hooks/useSlides';
+import { useSlide, useSlides } from '../hooks/useSlides';
 import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
 import { slideAPI } from '../services/api';
@@ -32,6 +32,7 @@ export default function SlideEditor() {
   const { deck } = useDeck(deckId);
   const { slide, updateSlide, pinImage, deleteImage, refresh } = useSlide(deckId, slideId);
   const { generating, generateImages, tweakImage } = useImages(deckId, slideId);
+  const { createSlide } = useSlides(deckId);
 
   const [speakerNotes, setSpeakerNotes] = useState('');
   const [imageDescription, setImageDescription] = useState('');
@@ -86,6 +87,21 @@ export default function SlideEditor() {
     }
   };
 
+  const handleCreateNextSlide = async () => {
+    try {
+      if (unsavedChanges) {
+        await handleSave();
+      }
+      const newSlide = await createSlide({
+        speakerNotes: '',
+        imageDescription: '',
+      });
+      navigate(`/decks/${deckId}/slides/${newSlide.id}`);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   if (!slide || !deck) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
@@ -98,13 +114,20 @@ export default function SlideEditor() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button
-        startIcon={<ArrowBack />}
-        onClick={() => navigate(`/decks/${deckId}`)}
-        sx={{ mb: 3 }}
-      >
-        Back to Deck
-      </Button>
+      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => navigate(`/decks/${deckId}`)}
+        >
+          Back to Deck
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleCreateNextSlide}
+        >
+          Next Slide
+        </Button>
+      </Box>
 
       <Typography variant="h4" gutterBottom>
         Slide {slide.order + 1}

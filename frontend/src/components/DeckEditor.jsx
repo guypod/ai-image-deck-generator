@@ -18,11 +18,12 @@ import {
 import { ArrowBack, Add, Delete, Edit } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
+import EntityManager from './EntityManager';
 
 export default function DeckEditor() {
   const { deckId } = useParams();
   const navigate = useNavigate();
-  const { deck, loading: deckLoading, updateDeck } = useDeck(deckId);
+  const { deck, loading: deckLoading, updateDeck, refresh } = useDeck(deckId);
   const { slides, loading: slidesLoading, createSlide, deleteSlide } = useSlides(deckId);
   const [editingName, setEditingName] = useState(false);
   const [editingStyle, setEditingStyle] = useState(false);
@@ -35,6 +36,10 @@ export default function DeckEditor() {
       setVisualStyle(deck.visualStyle);
     }
   }, [deck]);
+
+  const handleEntityUpdate = () => {
+    refresh();
+  };
 
   const handleSaveName = async () => {
     try {
@@ -167,12 +172,11 @@ export default function DeckEditor() {
           )}
         </Box>
 
-        <Typography variant="subtitle2" gutterBottom>
-          Entities ({Object.keys(deck.entities || {}).length})
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Feature coming soon - add named entities with images
-        </Typography>
+        <EntityManager
+          deckId={deckId}
+          entities={deck.entities || {}}
+          onUpdate={handleEntityUpdate}
+        />
       </Paper>
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
