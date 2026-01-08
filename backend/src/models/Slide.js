@@ -137,10 +137,10 @@ export const generateImagesSchema = Joi.object({
       'number.max': 'Count must not exceed 10'
     }),
   service: Joi.string()
-    .valid('google-imagen', 'openai-dalle')
-    .default('google-imagen')
+    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
+    .default('gemini-pro')
     .messages({
-      'any.only': 'Service must be either google-imagen or openai-dalle'
+      'any.only': 'Service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro'
     })
 });
 

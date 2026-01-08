@@ -25,7 +25,7 @@ export default function Settings() {
   const [googleImagenKey, setGoogleImagenKey] = useState('');
   const [openaiKey, setOpenaiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
-  const [defaultService, setDefaultService] = useState('google-imagen');
+  const [defaultService, setDefaultService] = useState('gemini-pro');
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
   const [saving, setSaving] = useState(false);
   const [testingGoogle, setTestingGoogle] = useState(false);

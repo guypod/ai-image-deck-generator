@@ -36,7 +36,7 @@ export default function SlideEditor() {
   const [speakerNotes, setSpeakerNotes] = useState('');
   const [imageDescription, setImageDescription] = useState('');
   const [variantCount, setVariantCount] = useState(2);
-  const [service, setService] = useState('google-imagen');
+  const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   useEffect(() => {

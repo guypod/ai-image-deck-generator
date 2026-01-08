@@ -538,7 +538,7 @@ export async function getSettings() {
           openaiDalle: null,
           geminiNanoBanana: null
         },
-        defaultService: 'google-imagen',
+        defaultService: 'gemini-pro',
         defaultVariantCount: 2,
         googleSlides: {
           credentials: null
