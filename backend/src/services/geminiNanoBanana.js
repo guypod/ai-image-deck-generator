@@ -84,7 +84,6 @@ export async function generateImage(prompt, options = {}) {
       // Image editing: include reference image
       const base64Image = referenceImage.toString('base64');
       contents.push({
-        role: 'user',
         parts: [
           {
             inline_data: {
@@ -100,7 +99,6 @@ export async function generateImage(prompt, options = {}) {
     } else {
       // Text-to-image: just text prompt
       contents.push({
-        role: 'user',
         parts: [
           {
             text: prompt,
@@ -110,12 +108,10 @@ export async function generateImage(prompt, options = {}) {
     }
 
     // Build generation config
+    // Note: imageConfig with aspectRatio/imageSize is not currently supported by the API
+    // Images are generated at a default resolution
     const generationConfig = {
-      response_modalities: ['image'],
-      image: {
-        aspect_ratio: aspectRatio,
-        resolution: resolution,
-      },
+      responseModalities: ['IMAGE'],
     };
 
     // Build request body
@@ -153,14 +149,14 @@ export async function generateImage(prompt, options = {}) {
     }
 
     const parts = response.data.candidates[0].content.parts;
-    const imagePart = parts.find(part => part.inline_data);
+    const imagePart = parts.find(part => part.inlineData);
 
     if (!imagePart) {
       throw new Error('No image data found in response');
     }
 
     // Decode base64 image
-    const imageBuffer = Buffer.from(imagePart.inline_data.data, 'base64');
+    const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
 
     // Convert to PNG if needed (Gemini returns various formats)
     const pngBuffer = await sharp(imageBuffer)
