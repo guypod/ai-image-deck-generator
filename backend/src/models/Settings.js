@@ -34,13 +34,21 @@ export const settingsSchema = Joi.object({
       .messages({
         'string.min': 'OpenAI DALL-E API key must be at least 10 characters',
         'string.max': 'OpenAI DALL-E API key must not exceed 500 characters'
+      }),
+    geminiNanoBanana: Joi.string()
+      .min(10)
+      .max(500)
+      .allow(null, '')
+      .messages({
+        'string.min': 'Gemini Nano Banana API key must be at least 10 characters',
+        'string.max': 'Gemini Nano Banana API key must not exceed 500 characters'
       })
   }).required(),
   defaultService: Joi.string()
-    .valid('google-imagen', 'openai-dalle')
+    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
     .required()
     .messages({
-      'any.only': 'Default service must be either google-imagen or openai-dalle',
+      'any.only': 'Default service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro',
       'any.required': 'Default service is required'
     }),
   defaultVariantCount: Joi.number()
@@ -77,12 +85,20 @@ export const updateSettingsSchema = Joi.object({
       .messages({
         'string.min': 'OpenAI DALL-E API key must be at least 10 characters',
         'string.max': 'OpenAI DALL-E API key must not exceed 500 characters'
+      }),
+    geminiNanoBanana: Joi.string()
+      .min(10)
+      .max(500)
+      .allow(null, '', '***masked***')
+      .messages({
+        'string.min': 'Gemini Nano Banana API key must be at least 10 characters',
+        'string.max': 'Gemini Nano Banana API key must not exceed 500 characters'
       })
   }),
   defaultService: Joi.string()
-    .valid('google-imagen', 'openai-dalle')
+    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
     .messages({
-      'any.only': 'Default service must be either google-imagen or openai-dalle'
+      'any.only': 'Default service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro'
     }),
   defaultVariantCount: Joi.number()
     .integer()
@@ -98,10 +114,10 @@ export const updateSettingsSchema = Joi.object({
 // Validation for testing API key
 export const testApiKeySchema = Joi.object({
   service: Joi.string()
-    .valid('google-imagen', 'openai-dalle')
+    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
     .required()
     .messages({
-      'any.only': 'Service must be either google-imagen or openai-dalle',
+      'any.only': 'Service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro',
       'any.required': 'Service is required'
     }),
   apiKey: Joi.string()
@@ -144,7 +160,8 @@ export function maskSettings(settings) {
     ...settings,
     apiKeys: {
       googleImagen: settings.apiKeys.googleImagen ? maskApiKey(settings.apiKeys.googleImagen) : null,
-      openaiDalle: settings.apiKeys.openaiDalle ? maskApiKey(settings.apiKeys.openaiDalle) : null
+      openaiDalle: settings.apiKeys.openaiDalle ? maskApiKey(settings.apiKeys.openaiDalle) : null,
+      geminiNanoBanana: settings.apiKeys.geminiNanoBanana ? maskApiKey(settings.apiKeys.geminiNanoBanana) : null
     },
     googleSlides: {
       connected: !!settings.googleSlides?.credentials,

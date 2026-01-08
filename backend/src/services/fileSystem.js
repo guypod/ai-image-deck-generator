@@ -535,7 +535,8 @@ export async function getSettings() {
       return {
         apiKeys: {
           googleImagen: null,
-          openaiDalle: null
+          openaiDalle: null,
+          geminiNanoBanana: null
         },
         defaultService: 'google-imagen',
         defaultVariantCount: 2,

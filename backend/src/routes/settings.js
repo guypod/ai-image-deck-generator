@@ -34,6 +34,9 @@ router.put('/', validate(updateSettingsSchema), asyncHandler(async (req, res) =>
     if (req.body.apiKeys.openaiDalle && req.body.apiKeys.openaiDalle !== '***masked***') {
       updates.apiKeys.openaiDalle = req.body.apiKeys.openaiDalle;
     }
+    if (req.body.apiKeys.geminiNanoBanana && req.body.apiKeys.geminiNanoBanana !== '***masked***') {
+      updates.apiKeys.geminiNanoBanana = req.body.apiKeys.geminiNanoBanana;
+    }
   }
 
   if (req.body.defaultService !== undefined) {
@@ -70,6 +73,12 @@ router.post('/test-api-key', validate(testApiKeySchema), asyncHandler(async (req
       // Test OpenAI API
       const { testOpenAIKey } = await import('../services/openaiDalle.js');
       const result = await testOpenAIKey(apiKey);
+      valid = result.valid;
+      message = result.message;
+    } else if (service === 'gemini-flash' || service === 'gemini-pro') {
+      // Test Gemini Nano Banana API
+      const { testApiKey: testGeminiKey } = await import('../services/geminiNanoBanana.js');
+      const result = await testGeminiKey(apiKey);
       valid = result.valid;
       message = result.message;
     }

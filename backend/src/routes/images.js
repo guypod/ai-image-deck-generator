@@ -6,6 +6,7 @@ import { generateImagesSchema, tweakImageSchema } from '../models/Slide.js';
 import * as fileSystem from '../services/fileSystem.js';
 import * as googleImagen from '../services/googleImagen.js';
 import * as openaiDalle from '../services/openaiDalle.js';
+import * as geminiNanoBanana from '../services/geminiNanoBanana.js';
 import * as imageProcessor from '../services/imageProcessor.js';
 import { buildFullPrompt } from '../utils/promptParser.js';
 import { executeInParallel } from '../utils/asyncPool.js';
@@ -39,6 +40,7 @@ router.post(
     // Get deck and slide
     const deck = await fileSystem.getDeck(deckId);
     const slide = await fileSystem.getSlide(deckId, slideId);
+    const settings = await fileSystem.getSettings();
 
     // Build full prompt
     const { prompt, unknownEntities } = buildFullPrompt(
@@ -60,6 +62,20 @@ router.post(
         imageBuffer = await googleImagen.generateImage(prompt, '16:9');
       } else if (service === 'openai-dalle') {
         imageBuffer = await openaiDalle.generateImage(prompt);
+      } else if (service === 'gemini-flash') {
+        imageBuffer = await geminiNanoBanana.generateImage(prompt, {
+          apiKey: settings.apiKeys.geminiNanoBanana,
+          model: geminiNanoBanana.MODELS.FLASH,
+          aspectRatio: '16:9',
+          resolution: '2K'
+        });
+      } else if (service === 'gemini-pro') {
+        imageBuffer = await geminiNanoBanana.generateImage(prompt, {
+          apiKey: settings.apiKeys.geminiNanoBanana,
+          model: geminiNanoBanana.MODELS.PRO,
+          aspectRatio: '16:9',
+          resolution: '2K'
+        });
       } else {
         throw new Error(`Unknown service: ${service}`);
       }
@@ -102,8 +118,9 @@ router.post(
     const { deckId, slideId } = req.params;
     const { imageId, prompt, count } = req.body;
 
-    // Get slide and find source image
+    // Get slide, settings, and find source image
     const slide = await fileSystem.getSlide(deckId, slideId);
+    const settings = await fileSystem.getSettings();
     const sourceImage = slide.generatedImages.find(img => img.id === imageId);
 
     if (!sourceImage) {
@@ -123,6 +140,20 @@ router.post(
         imageBuffer = await googleImagen.tweakImage(sourceImageBuffer, prompt, '16:9');
       } else if (sourceImage.service === 'openai-dalle') {
         imageBuffer = await openaiDalle.tweakImage(sourceImageBuffer, prompt);
+      } else if (sourceImage.service === 'gemini-flash') {
+        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, prompt, {
+          apiKey: settings.apiKeys.geminiNanoBanana,
+          model: geminiNanoBanana.MODELS.FLASH,
+          aspectRatio: '16:9',
+          resolution: '2K'
+        });
+      } else if (sourceImage.service === 'gemini-pro') {
+        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, prompt, {
+          apiKey: settings.apiKeys.geminiNanoBanana,
+          model: geminiNanoBanana.MODELS.PRO,
+          aspectRatio: '16:9',
+          resolution: '2K'
+        });
       } else {
         throw new Error(`Unknown service: ${sourceImage.service}`);
       }
@@ -275,6 +306,9 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
   if (!job) return;
 
   try {
+    // Get settings
+    const settings = await fileSystem.getSettings();
+
     // Generate for each slide sequentially (to respect rate limits)
     for (const slide of slides) {
       try {
@@ -291,8 +325,24 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
 
           if (service === 'google-imagen') {
             imageBuffer = await googleImagen.generateImage(prompt, '16:9');
-          } else {
+          } else if (service === 'openai-dalle') {
             imageBuffer = await openaiDalle.generateImage(prompt);
+          } else if (service === 'gemini-flash') {
+            imageBuffer = await geminiNanoBanana.generateImage(prompt, {
+              apiKey: settings.apiKeys.geminiNanoBanana,
+              model: geminiNanoBanana.MODELS.FLASH,
+              aspectRatio: '16:9',
+              resolution: '2K'
+            });
+          } else if (service === 'gemini-pro') {
+            imageBuffer = await geminiNanoBanana.generateImage(prompt, {
+              apiKey: settings.apiKeys.geminiNanoBanana,
+              model: geminiNanoBanana.MODELS.PRO,
+              aspectRatio: '16:9',
+              resolution: '2K'
+            });
+          } else {
+            throw new Error(`Unknown service: ${service}`);
           }
 
           const processedBuffer = await imageProcessor.processImage(imageBuffer);

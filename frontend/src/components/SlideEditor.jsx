@@ -152,7 +152,7 @@ export default function SlideEditor() {
             )}
 
             <Box display="flex" gap={2} alignItems="center" mb={2}>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
                 <InputLabel>Service</InputLabel>
                 <Select
                   value={service}
@@ -161,6 +161,8 @@ export default function SlideEditor() {
                 >
                   <MenuItem value="google-imagen">Google Imagen</MenuItem>
                   <MenuItem value="openai-dalle">OpenAI DALL-E</MenuItem>
+                  <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
+                  <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
                 </Select>
               </FormControl>
 
@@ -242,7 +244,10 @@ export default function SlideEditor() {
                         <Delete />
                       </IconButton>
                       <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                        {image.service === 'google-imagen' ? 'Imagen' : 'DALL-E'}
+                        {image.service === 'google-imagen' ? 'Imagen' :
+                         image.service === 'openai-dalle' ? 'DALL-E' :
+                         image.service === 'gemini-flash' ? 'Gemini Flash' :
+                         image.service === 'gemini-pro' ? 'Gemini Pro' : image.service}
                       </Typography>
                     </CardActions>
                   </Card>

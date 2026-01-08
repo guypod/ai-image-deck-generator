@@ -24,13 +24,16 @@ export default function Settings() {
 
   const [googleImagenKey, setGoogleImagenKey] = useState('');
   const [openaiKey, setOpenaiKey] = useState('');
+  const [geminiKey, setGeminiKey] = useState('');
   const [defaultService, setDefaultService] = useState('google-imagen');
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
   const [saving, setSaving] = useState(false);
   const [testingGoogle, setTestingGoogle] = useState(false);
   const [testingOpenAI, setTestingOpenAI] = useState(false);
+  const [testingGemini, setTestingGemini] = useState(false);
   const [googleStatus, setGoogleStatus] = useState(null);
   const [openaiStatus, setOpenaiStatus] = useState(null);
+  const [geminiStatus, setGeminiStatus] = useState(null);
 
   useEffect(() => {
     if (settings) {
@@ -53,6 +56,10 @@ export default function Settings() {
 
       if (openaiKey && openaiKey !== '***masked***') {
         updates.apiKeys = { ...updates.apiKeys, openaiDalle: openaiKey };
+      }
+
+      if (geminiKey && geminiKey !== '***masked***') {
+        updates.apiKeys = { ...updates.apiKeys, geminiNanoBanana: geminiKey };
       }
 
       await updateSettings(updates);
@@ -95,6 +102,23 @@ export default function Settings() {
       setOpenaiStatus({ valid: false, message: err.message });
     } finally {
       setTestingOpenAI(false);
+    }
+  };
+
+  const handleTestGemini = async () => {
+    if (!geminiKey || geminiKey === '***masked***') {
+      alert('Please enter a Gemini API key first');
+      return;
+    }
+
+    setTestingGemini(true);
+    try {
+      const result = await testApiKey('gemini-flash', geminiKey);
+      setGeminiStatus(result);
+    } catch (err) {
+      setGeminiStatus({ valid: false, message: err.message });
+    } finally {
+      setTestingGemini(false);
     }
   };
 
@@ -188,6 +212,36 @@ export default function Settings() {
           </Box>
         </Box>
 
+        <Box mb={3}>
+          <TextField
+            fullWidth
+            label="Gemini Nano Banana API Key"
+            type="password"
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+            placeholder={settings?.apiKeys?.geminiNanoBanana ? '***masked***' : 'Enter your key...'}
+            helperText="Get your key from Google AI Studio (ai.google.dev)"
+            sx={{ mb: 1 }}
+          />
+          <Box display="flex" gap={1} alignItems="center">
+            <Button
+              size="small"
+              onClick={handleTestGemini}
+              disabled={testingGemini}
+            >
+              {testingGemini ? 'Testing...' : 'Test Key'}
+            </Button>
+            {geminiStatus && (
+              <Box display="flex" alignItems="center" gap={0.5}>
+                {geminiStatus.valid ? <Check color="success" /> : <Close color="error" />}
+                <Typography variant="caption" color={geminiStatus.valid ? 'success.main' : 'error.main'}>
+                  {geminiStatus.message}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+
         <Divider sx={{ my: 3 }} />
 
         <Typography variant="h6" gutterBottom>
@@ -201,8 +255,10 @@ export default function Settings() {
             label="Default AI Service"
             onChange={(e) => setDefaultService(e.target.value)}
           >
-            <MenuItem value="google-imagen">Google Imagen</MenuItem>
+            <MenuItem value="google-imagen">Google Imagen (Vertex AI)</MenuItem>
             <MenuItem value="openai-dalle">OpenAI DALL-E</MenuItem>
+            <MenuItem value="gemini-flash">Gemini Nano Banana (Fast)</MenuItem>
+            <MenuItem value="gemini-pro">Gemini Nano Banana Pro (Quality)</MenuItem>
           </Select>
         </FormControl>
 
