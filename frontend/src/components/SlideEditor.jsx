@@ -39,6 +39,7 @@ export default function SlideEditor() {
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   useEffect(() => {
     if (slide) {
@@ -57,8 +58,46 @@ export default function SlideEditor() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    setGeneratingDescription(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/decks/${deckId}/slides/${slideId}/generate-description`,
+        { method: 'POST' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to generate description');
+      }
+
+      const data = await response.json();
+      setImageDescription(data.description);
+      setUnsavedChanges(true);
+      return data.description;
+    } catch (err) {
+      alert(`Error generating description: ${err.message}`);
+      throw err;
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
   const handleGenerate = async () => {
-    if (unsavedChanges) {
+    let finalDescription = imageDescription;
+
+    // Auto-generate description if empty
+    if (!imageDescription.trim()) {
+      try {
+        finalDescription = await handleGenerateDescription();
+        // Save the generated description
+        await updateSlide({ speakerNotes, imageDescription: finalDescription });
+        await refresh();
+      } catch (err) {
+        // Error already alerted in handleGenerateDescription
+        return;
+      }
+    } else if (unsavedChanges) {
       await handleSave();
     }
 
@@ -151,20 +190,29 @@ export default function SlideEditor() {
               sx={{ mb: 3 }}
             />
 
-            <TextField
-              fullWidth
-              label="Image Description"
-              multiline
-              rows={4}
-              value={imageDescription}
-              onChange={(e) => {
-                setImageDescription(e.target.value);
-                setUnsavedChanges(true);
-              }}
-              placeholder="Describe the image to generate..."
-              helperText="Use @EntityName to reference named entities"
-              sx={{ mb: 3 }}
-            />
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                label="Image Description"
+                multiline
+                rows={4}
+                value={imageDescription}
+                onChange={(e) => {
+                  setImageDescription(e.target.value);
+                  setUnsavedChanges(true);
+                }}
+                placeholder="Describe the image to generate... (or leave empty to auto-generate)"
+                helperText="Use @EntityName to reference named entities"
+              />
+              <Button
+                size="small"
+                onClick={handleGenerateDescription}
+                disabled={generatingDescription}
+                sx={{ mt: 1 }}
+              >
+                {generatingDescription ? 'Generating...' : 'Generate Description with ChatGPT'}
+              </Button>
+            </Box>
 
             {unsavedChanges && (
               <Alert severity="info" sx={{ mb: 2 }}>
@@ -209,12 +257,20 @@ export default function SlideEditor() {
               fullWidth
               variant="contained"
               size="large"
-              startIcon={generating ? <CircularProgress size={20} /> : <PhotoCamera />}
+              startIcon={(generating || generatingDescription) ? <CircularProgress size={20} /> : <PhotoCamera />}
               onClick={handleGenerate}
-              disabled={generating || !imageDescription.trim()}
+              disabled={generating || generatingDescription}
             >
-              {generating ? 'Generating...' : 'Generate Images'}
+              {generatingDescription ? 'Creating Description...' :
+               generating ? 'Generating Images...' :
+               'Generate Images'}
             </Button>
+
+            {!imageDescription.trim() && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Description will be auto-generated using ChatGPT from your speaker notes
+              </Typography>
+            )}
           </Paper>
         </Grid>
 

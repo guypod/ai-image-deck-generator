@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { createSlideSchema, updateSlideSchema, reorderSlidesSchema } from '../models/Slide.js';
 import * as fileSystem from '../services/fileSystem.js';
+import * as openaiDescriptions from '../services/openaiDescriptions.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -45,6 +46,33 @@ router.put('/:slideId', validate(updateSlideSchema), asyncHandler(async (req, re
   const { deckId, slideId } = req.params;
   const slide = await fileSystem.updateSlide(deckId, slideId, req.body);
   res.json(slide);
+}));
+
+/**
+ * POST /api/decks/:deckId/slides/:slideId/generate-description
+ * Generate image description using ChatGPT
+ */
+router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
+  const { deckId, slideId } = req.params;
+
+  const deck = await fileSystem.getDeck(deckId);
+  const slide = await fileSystem.getSlide(deckId, slideId);
+  const settings = await fileSystem.getSettings();
+
+  if (!settings.apiKeys.openaiDalle) {
+    return res.status(400).json({
+      error: 'OpenAI API key not configured. Please add it in Settings.'
+    });
+  }
+
+  const description = await openaiDescriptions.generateImageDescription(
+    slide.speakerNotes,
+    deck.visualStyle,
+    deck.entities,
+    settings.apiKeys.openaiDalle
+  );
+
+  res.json({ description });
 }));
 
 /**
