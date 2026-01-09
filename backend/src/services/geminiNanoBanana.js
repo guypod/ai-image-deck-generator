@@ -85,6 +85,12 @@ export async function generateImage(prompt, options = {}) {
 
     // Add reference images if provided (entity images or theme images)
     if (referenceImages && referenceImages.length > 0) {
+      // Add instruction about reference images
+      const entityNames = referenceImages.map(r => r.label).join(', ');
+      parts.push({
+        text: `IMPORTANT: The following reference images show the actual subjects that should appear in the generated image. Use these images to match the appearance, style, and characteristics of: ${entityNames}. Generate an image that includes these exact subjects as shown in the reference images.`,
+      });
+
       for (const refImg of referenceImages) {
         const base64Image = refImg.buffer.toString('base64');
         parts.push({
@@ -96,12 +102,15 @@ export async function generateImage(prompt, options = {}) {
         // Add a label for what this image represents
         if (refImg.label) {
           parts.push({
-            text: `[Reference image: ${refImg.label}]`,
+            text: `↑ This is the reference image for "${refImg.label}". Use this exact subject/appearance in the generated image.`,
           });
         }
       }
     } else if (referenceImage) {
       // Backward compatibility: single reference image
+      parts.push({
+        text: `IMPORTANT: Use the following reference image to match the style, appearance, and subject matter in the generated image.`,
+      });
       const base64Image = referenceImage.toString('base64');
       parts.push({
         inlineData: {
@@ -113,7 +122,7 @@ export async function generateImage(prompt, options = {}) {
 
     // Add main text prompt
     parts.push({
-      text: prompt,
+      text: `Image generation request: ${prompt}`,
     });
 
     contents.push({ parts });
