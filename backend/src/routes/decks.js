@@ -133,4 +133,55 @@ router.get('/:deckId/entities/:entityName/:filename', asyncHandler(async (req, r
   });
 }));
 
+/**
+ * POST /api/decks/:deckId/theme-images
+ * Upload theme image
+ */
+router.post(
+  '/:deckId/theme-images',
+  upload.single('image'),
+  asyncHandler(async (req, res) => {
+    const { deckId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image file is required' });
+    }
+
+    const imageExtension = req.file.mimetype.split('/')[1] || 'jpg';
+    const result = await fileSystem.addThemeImage(
+      deckId,
+      req.file.buffer,
+      imageExtension
+    );
+
+    res.status(201).json(result.deck);
+  })
+);
+
+/**
+ * DELETE /api/decks/:deckId/theme-images/:filename
+ * Remove theme image
+ */
+router.delete('/:deckId/theme-images/:filename', asyncHandler(async (req, res) => {
+  const { deckId, filename } = req.params;
+
+  const deck = await fileSystem.removeThemeImage(deckId, filename);
+  res.json(deck);
+}));
+
+/**
+ * GET /api/decks/:deckId/theme-images/:filename
+ * Get theme image file
+ */
+router.get('/:deckId/theme-images/:filename', asyncHandler(async (req, res) => {
+  const { deckId, filename } = req.params;
+  const imagePath = fileSystem.getThemeImagePath(deckId, filename);
+
+  res.sendFile(imagePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Image not found' });
+    }
+  });
+}));
+
 export default router;

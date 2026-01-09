@@ -68,6 +68,7 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
     slide.speakerNotes,
     deck.visualStyle,
     deck.entities,
+    deck.themeImages || [],
     process.env.OPENAI_API_KEY
   );
 

@@ -53,6 +53,13 @@ export const deckSchema = Joi.object({
       entitySchema
     )
     .default({}),
+  themeImages: Joi.array()
+    .items(Joi.string())
+    .max(10)
+    .default([])
+    .messages({
+      'array.max': 'Maximum 10 theme images allowed per deck'
+    }),
   slides: Joi.array()
     .items(Joi.string())
     .default([])

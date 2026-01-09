@@ -42,11 +42,12 @@ router.post(
     const slide = await fileSystem.getSlide(deckId, slideId);
     const settings = await fileSystem.getSettings();
 
-    // Build full prompt
+    // Build full prompt (including theme images)
     const { prompt, unknownEntities } = buildFullPrompt(
       deck.visualStyle,
       slide.imageDescription,
-      deck.entities
+      deck.entities,
+      deck.themeImages || []
     );
 
     // Warn about unknown entities

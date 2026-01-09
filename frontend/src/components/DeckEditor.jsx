@@ -19,6 +19,7 @@ import { ArrowBack, Add, Delete, Edit } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
 import EntityManager from './EntityManager';
+import ThemeImageManager from './ThemeImageManager';
 
 export default function DeckEditor() {
   const { deckId } = useParams();
@@ -171,6 +172,18 @@ export default function DeckEditor() {
             </Box>
           )}
         </Box>
+
+        <Box sx={{ my: 3, borderBottom: 1, borderColor: 'divider' }} />
+
+        <Box mb={3}>
+          <ThemeImageManager
+            deckId={deckId}
+            themeImages={deck.themeImages || []}
+            onUpdate={handleEntityUpdate}
+          />
+        </Box>
+
+        <Box sx={{ my: 3, borderBottom: 1, borderColor: 'divider' }} />
 
         <EntityManager
           deckId={deckId}

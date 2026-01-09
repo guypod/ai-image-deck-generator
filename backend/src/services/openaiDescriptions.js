@@ -10,10 +10,11 @@ import OpenAI from 'openai';
  * @param {string} speakerNotes - The speaker notes for the slide
  * @param {string} visualStyle - The deck's visual style
  * @param {object} entities - Available entities from the deck
+ * @param {array} themeImages - Array of theme image filenames
  * @param {string} apiKey - OpenAI API key
  * @returns {Promise<string>} - Generated image description
  */
-export async function generateImageDescription(speakerNotes, visualStyle, entities = {}, apiKey) {
+export async function generateImageDescription(speakerNotes, visualStyle, entities = {}, themeImages = [], apiKey) {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
   }
@@ -26,6 +27,11 @@ export async function generateImageDescription(speakerNotes, visualStyle, entiti
     ? `\n\nAvailable named entities (use @EntityName to reference them): ${entityNames.map(e => `@${e}`).join(', ')}`
     : '';
 
+  // Build theme images context
+  const themeContext = themeImages && themeImages.length > 0
+    ? `\n\nNote: This deck has ${themeImages.length} theme image${themeImages.length > 1 ? 's' : ''} that set the visual tone. The generated image should match the style and mood of these reference images.`
+    : '';
+
   // Build the prompt for ChatGPT
   const systemPrompt = `You are an expert at creating visual descriptions for presentation slides.
 Your task is to generate a concise, visually-focused image description that will be used to generate an AI image for a slide.
@@ -33,7 +39,7 @@ Your task is to generate a concise, visually-focused image description that will
 Guidelines:
 - Focus on visual elements, composition, and mood
 - Be specific but concise (1-3 sentences)
-- Consider the presentation's visual style
+- Consider the presentation's visual style and theme images
 - If named entities are available, use @EntityName syntax to reference them
 - Avoid abstract concepts - focus on concrete visual elements
 - Think about what would make an engaging slide image`;
@@ -42,7 +48,7 @@ Guidelines:
 
 "${speakerNotes || 'No speaker notes provided'}"
 
-Visual style for the deck: ${visualStyle || 'Professional presentation style'}${entityContext}
+Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}${entityContext}
 
 Generate a concise visual description (1-3 sentences) that captures the essence of what should be shown in the slide image:`;
 

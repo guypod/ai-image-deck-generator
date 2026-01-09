@@ -239,6 +239,80 @@ export async function removeEntity(deckId, entityName) {
   return deck;
 }
 
+// ===== THEME IMAGE OPERATIONS =====
+
+/**
+ * Add theme image to deck
+ */
+export async function addThemeImage(deckId, imageBuffer, imageExtension = 'jpg') {
+  const deck = await getDeck(deckId);
+
+  // Check limit
+  if (!deck.themeImages) {
+    deck.themeImages = [];
+  }
+
+  if (deck.themeImages.length >= 10) {
+    throw new Error('Maximum 10 theme images allowed per deck');
+  }
+
+  // Generate unique filename
+  const themeImageId = uuidv4();
+  const imageFilename = `theme-${themeImageId}.${imageExtension}`;
+  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+
+  // Ensure theme directory exists
+  const themeDir = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme');
+  await fs.mkdir(themeDir, { recursive: true });
+
+  // Save image
+  await fs.writeFile(imagePath, imageBuffer);
+
+  // Update deck
+  deck.themeImages.push(imageFilename);
+  deck.updatedAt = new Date().toISOString();
+
+  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  await writeJsonAtomic(deckPath, deck);
+
+  return { deck, filename: imageFilename };
+}
+
+/**
+ * Remove theme image from deck
+ */
+export async function removeThemeImage(deckId, imageFilename) {
+  const deck = await getDeck(deckId);
+
+  if (!deck.themeImages || !deck.themeImages.includes(imageFilename)) {
+    throw new Error(`Theme image '${imageFilename}' not found`);
+  }
+
+  // Delete image file
+  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+  try {
+    await fs.unlink(imagePath);
+  } catch (error) {
+    console.error(`Failed to delete theme image ${imageFilename}:`, error.message);
+  }
+
+  // Update deck
+  deck.themeImages = deck.themeImages.filter(f => f !== imageFilename);
+  deck.updatedAt = new Date().toISOString();
+
+  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  await writeJsonAtomic(deckPath, deck);
+
+  return deck;
+}
+
+/**
+ * Get theme image path
+ */
+export function getThemeImagePath(deckId, imageFilename) {
+  return path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+}
+
 // ===== SLIDE OPERATIONS =====
 
 /**

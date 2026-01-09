@@ -46,13 +46,14 @@ export function parseEntityReferences(text, entities = {}) {
 
 /**
  * Build full prompt for AI image generation
- * Combines visual style + processed description + quality notes
+ * Combines visual style + processed description + theme image guidance + quality notes
  * @param {string} visualStyle - Deck's visual style description
  * @param {string} imageDescription - Slide's image description (may contain @entities)
  * @param {object} entities - Entity mapping from deck
+ * @param {array} themeImages - Array of theme image filenames
  * @returns {object} - { prompt: string, unknownEntities: string[] }
  */
-export function buildFullPrompt(visualStyle, imageDescription, entities = {}) {
+export function buildFullPrompt(visualStyle, imageDescription, entities = {}, themeImages = []) {
   // Parse entity references in image description
   const { parsedText, unknownEntities } = parseEntityReferences(imageDescription, entities);
 
@@ -64,13 +65,18 @@ export function buildFullPrompt(visualStyle, imageDescription, entities = {}) {
     parts.push(visualStyle.trim());
   }
 
+  // Add theme image guidance if present
+  if (themeImages && themeImages.length > 0) {
+    parts.push(`Follow the visual style and tone shown in the provided reference images (${themeImages.length} theme image${themeImages.length > 1 ? 's' : ''} available)`);
+  }
+
   // Add processed image description if present
   if (parsedText && parsedText.trim()) {
     parts.push(parsedText.trim());
   }
 
-  // If both are empty, return error indicator
-  if (parts.length === 0) {
+  // If both visual style and description are empty, return error indicator
+  if (parts.length === 0 || (parts.length === 1 && themeImages.length > 0)) {
     throw new Error('Cannot generate image: both visual style and image description are empty');
   }
 
