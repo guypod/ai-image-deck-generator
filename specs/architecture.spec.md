@@ -98,7 +98,7 @@ All application data is stored in `~/.ai-image-decks/`:
       "id": "img-uuid-1",
       "filename": "image-001.jpg",
       "createdAt": "2025-01-08T10:30:00.000Z",
-      "service": "google-imagen",
+      "service": "gemini-pro",
       "prompt": "Professional corporate style. Wide shot of office with person at desk working.",
       "sourceImageId": null,
       "isPinned": true
@@ -107,7 +107,7 @@ All application data is stored in `~/.ai-image-decks/`:
       "id": "img-uuid-2",
       "filename": "image-002.jpg",
       "createdAt": "2025-01-08T10:30:05.000Z",
-      "service": "google-imagen",
+      "service": "gemini-pro",
       "prompt": "Professional corporate style. Wide shot of office with person at desk working.",
       "sourceImageId": null,
       "isPinned": false
@@ -116,7 +116,7 @@ All application data is stored in `~/.ai-image-decks/`:
       "id": "img-uuid-3",
       "filename": "image-003.jpg",
       "createdAt": "2025-01-08T11:00:00.000Z",
-      "service": "openai-dalle",
+      "service": "openai-gpt-image",
       "prompt": "Make the lighting warmer and more inviting",
       "sourceImageId": "img-uuid-1",
       "isPinned": false
@@ -134,7 +134,7 @@ All application data is stored in `~/.ai-image-decks/`:
   - `id`: UUID v4 for image, immutable
   - `filename`: Image filename (stored in slide folder)
   - `createdAt`: ISO 8601 timestamp, immutable
-  - `service`: "google-imagen" or "openai-dalle"
+  - `service`: "openai-gpt-image", "gemini-flash", or "gemini-pro"
   - `prompt`: Full processed prompt used for generation
   - `sourceImageId`: UUID of source image if this is a tweak, null otherwise
   - `isPinned`: Boolean, exactly one image should be pinned per slide
@@ -143,11 +143,7 @@ All application data is stored in `~/.ai-image-decks/`:
 
 ```json
 {
-  "apiKeys": {
-    "googleImagen": "key-value-here",
-    "openaiDalle": "key-value-here"
-  },
-  "defaultService": "google-imagen",
+  "defaultService": "gemini-pro",
   "defaultVariantCount": 2,
   "googleSlides": {
     "credentials": {
@@ -159,11 +155,13 @@ All application data is stored in `~/.ai-image-decks/`:
 }
 ```
 
+**Environment Variables:**
+API keys are now configured via environment variables in backend/.env:
+- `GEMINI_API_KEY`: Google Gemini API key (for gemini-flash, gemini-pro)
+- `OPENAI_API_KEY`: OpenAI API key (for openai-gpt-image)
+
 **Field Requirements:**
-- `apiKeys`: Object with service keys
-  - `googleImagen`: String, optional
-  - `openaiDalle`: String, optional
-- `defaultService`: "google-imagen" or "openai-dalle"
+- `defaultService`: "openai-gpt-image", "gemini-flash", or "gemini-pro"
 - `defaultVariantCount`: Integer, 1-10
 - `googleSlides.credentials`: OAuth credentials for Google Slides export
 

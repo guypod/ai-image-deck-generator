@@ -29,7 +29,7 @@ Users can generate images for multiple slides at once using "Generate All" and "
 
 **API:**
 - `POST /api/decks/:deckId/generate-all`
-- Request body: `{ "count": 2, "service": "google-imagen" }`
+- Request body: `{ "count": 2, "service": "gemini-pro" }`
 - Response: `{ "jobId": "job-uuid-123" }`
 
 **Requirements:**
@@ -61,7 +61,7 @@ Users can generate images for multiple slides at once using "Generate All" and "
 
 **API:**
 - `POST /api/decks/:deckId/generate-missing`
-- Request body: `{ "count": 2, "service": "google-imagen" }`
+- Request body: `{ "count": 2, "service": "gemini-pro" }`
 - Response: `{ "jobId": "job-uuid-123" }`
 
 **Requirements:**
@@ -245,9 +245,10 @@ Users can generate images for multiple slides at once using "Generate All" and "
 
 ### Generate All Request
 - count: integer, 1-10, required
-- service: "google-imagen" | "openai-dalle", required
+- service: "openai-gpt-image" | "gemini-flash" | "gemini-pro", required
 - deckId must exist
 - Deck must have at least 1 slide
+- API key must be configured in environment
 
 ### Generate Missing Request
 - Same as generate-all

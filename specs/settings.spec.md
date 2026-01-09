@@ -12,7 +12,11 @@ targets:
 
 ## Overview
 
-Users can configure API keys for AI services, set default preferences, and connect their Google account for Slides export. Settings are stored globally (not per deck) in `~/.ai-image-decks/settings.json`.
+Users can configure default preferences and connect their Google account for Slides export. Settings are stored globally (not per deck) in `~/.ai-image-decks/settings.json`.
+
+**API Keys:** AI service API keys are configured via environment variables in `backend/.env`:
+- `GEMINI_API_KEY` - For gemini-flash and gemini-pro services
+- `OPENAI_API_KEY` - For openai-gpt-image service
 
 ## Functional Requirements
 
@@ -21,18 +25,15 @@ Users can configure API keys for AI services, set default preferences, and conne
 **User Flow:**
 1. User navigates to Settings page
 2. System loads current settings
-3. System displays API keys (masked), defaults, and Google account status
+3. System displays defaults and Google account status
+4. System shows informational message about environment variable configuration
 
 **API:**
 - `GET /api/settings`
 - Response:
   ```json
   {
-    "apiKeys": {
-      "googleImagen": "***masked***",
-      "openaiDalle": "***masked***"
-    },
-    "defaultService": "google-imagen",
+    "defaultService": "gemini-pro",
     "defaultVariantCount": 2,
     "googleSlides": {
       "connected": true,
@@ -44,9 +45,9 @@ Users can configure API keys for AI services, set default preferences, and conne
 **Requirements:**
 - Load settings from `~/.ai-image-decks/settings.json`
 - If file doesn't exist, return defaults
-- Mask API keys in response (show only last 4 characters)
-- Don't send full API keys or refresh tokens to frontend
+- Don't send API keys or refresh tokens to frontend
 - Include Google account connection status
+- API keys are read from process.env in backend only
 
 [@test](../tests/backend/routes/settings.test.js#get-settings) - Get settings endpoint
 [@test](../tests/frontend/components/Settings.test.js#load-settings) - Load settings UI
@@ -55,69 +56,52 @@ Users can configure API keys for AI services, set default preferences, and conne
 
 **User Flow:**
 1. User is on Settings page
-2. User enters or updates API key
-3. User changes default service or variant count
-4. User clicks "Save" button
-5. System validates and saves settings
-6. System shows success message
+2. User changes default service or variant count
+3. User clicks "Save" button
+4. System validates and saves settings
+5. System shows success message
 
 **API:**
 - `PUT /api/settings`
 - Request body:
   ```json
   {
-    "apiKeys": {
-      "googleImagen": "new-key-value",
-      "openaiDalle": "existing-key"
-    },
-    "defaultService": "google-imagen",
+    "defaultService": "gemini-pro",
     "defaultVariantCount": 3
   }
   ```
-- Response: Updated settings (masked)
+- Response: Updated settings
 
 **Requirements:**
 - Validate all fields
-- If API key unchanged (masked value), don't update it
 - Atomic write to settings.json
 - Create `~/.ai-image-decks/` directory if needed
 - Set file permissions to 0600 (owner read/write only) for security
 - Return validation errors if invalid
+- Default service must be one of: "openai-gpt-image", "gemini-flash", "gemini-pro"
 
 [@test](../tests/backend/routes/settings.test.js#update-settings) - Update settings endpoint
 [@test](../tests/frontend/components/Settings.test.js#update-settings) - Update settings UI
 
-### Test API Key
+### Configure API Keys
 
 **User Flow:**
-1. User enters API key in settings
-2. User clicks "Test" button next to key input
-3. System makes test API call to verify key
-4. System shows success or error message
-
-**API:**
-- `POST /api/settings/test-api-key`
-- Request body: `{ "service": "google-imagen", "apiKey": "key-to-test" }`
-- Response:
-  ```json
-  {
-    "valid": true,
-    "message": "API key is valid"
-  }
-  ```
+1. User stops the application
+2. User edits `backend/.env` file
+3. User adds or updates API keys:
+   - `GEMINI_API_KEY=your-key-here`
+   - `OPENAI_API_KEY=your-key-here`
+4. User restarts the application
+5. Application reads keys from environment on startup
 
 **Requirements:**
-- Don't save key, just test it
-- Make minimal API call to verify:
-  - Google Imagen: Try to get API info or make tiny request
-  - OpenAI DALL-E: Call API with minimal request
-- Return validation result
-- Include helpful error messages
-
-[@test](../tests/backend/routes/settings.test.js#test-api-key) - Test API key endpoint
-[@test](../tests/backend/services/googleImagen.test.js#test-key) - Test Google Imagen key
-[@test](../tests/backend/services/openaiDalle.test.js#test-key) - Test OpenAI key
-[@test](../tests/frontend/components/Settings.test.js#test-key-button) - Test key button UI
+- API keys are read from process.env only
+- Keys are never stored in settings.json
+- Keys are never sent to frontend
+- Frontend displays informational message about .env configuration
+- Show links to get API keys:
+  - Gemini: https://ai.google.dev
+  - OpenAI: https://platform.openai.com
 
 ### Connect Google Account
 
@@ -205,11 +189,7 @@ Users can configure API keys for AI services, set default preferences, and conne
 If settings.json doesn't exist:
 ```json
 {
-  "apiKeys": {
-    "googleImagen": null,
-    "openaiDalle": null
-  },
-  "defaultService": "google-imagen",
+  "defaultService": "gemini-pro",
   "defaultVariantCount": 2,
   "googleSlides": {
     "credentials": null
@@ -219,14 +199,8 @@ If settings.json doesn't exist:
 
 ## Validation
 
-### API Keys
-- Type: string
-- Min length: 10 characters
-- Max length: 500 characters
-- Optional (null or empty string allowed)
-
 ### Default Service
-- Must be: "google-imagen" or "openai-dalle"
+- Must be: "openai-gpt-image", "gemini-flash", or "gemini-pro"
 - Required
 
 ### Default Variant Count
@@ -245,15 +219,11 @@ If settings.json doesn't exist:
 ## Security Considerations
 
 ### API Key Storage
-- Store in plaintext in settings.json (acceptable for local app)
-- File permissions: 0600 (owner read/write only)
+- API keys are stored in backend/.env file only
+- File permissions: 0600 (owner read/write only) recommended
 - Never log full API keys
-- Never send full keys to frontend (mask them)
-
-**Optional Enhancement:**
-- Encrypt API keys at rest using crypto module
-- Derive encryption key from machine ID or user password
-- Requires unlocking on app start
+- Never send keys to frontend
+- Keys are read from process.env on backend startup
 
 ### OAuth Tokens
 - Store refresh token securely in settings.json

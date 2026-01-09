@@ -32,12 +32,12 @@ Users can generate AI images for slides using Google Imagen or OpenAI DALL-E. Th
 
 **API:**
 - `POST /api/decks/:deckId/slides/:slideId/generate`
-- Request body: `{ "count": 2, "service": "google-imagen" }`
+- Request body: `{ "count": 2, "service": "gemini-pro" }`
 - Response: `{ "images": [{...}, {...}] }`
 
 **Requirements:**
 - Validate count (1-10)
-- Validate service ("google-imagen" or "openai-dalle")
+- Validate service ("openai-gpt-image", "gemini-flash", or "gemini-pro")
 - Parse @entity references from imageDescription
 - Combine visualStyle + imageDescription into full prompt
 - Generate specified number of variants in parallel
@@ -49,8 +49,8 @@ Users can generate AI images for slides using Google Imagen or OpenAI DALL-E. Th
 - Show progress/loading state in UI
 
 [@test](../tests/backend/routes/images.test.js#generate-images) - Generate images API endpoint
-[@test](../tests/backend/services/googleImagen.test.js#text-to-image) - Google Imagen text-to-image
-[@test](../tests/backend/services/openaiDalle.test.js#text-to-image) - OpenAI DALL-E text-to-image
+[@test](../tests/backend/services/openaiGptImage.test.js#text-to-image) - OpenAI GPT Image text-to-image
+[@test](../tests/backend/services/geminiNanoBanana.test.js#text-to-image) - Gemini text-to-image
 [@test](../tests/backend/utils/promptParser.test.js#build-full-prompt) - Build full prompt
 [@test](../tests/frontend/components/SlideEditor.test.js#generate-images) - Generate images UI
 
@@ -305,8 +305,8 @@ Users can generate AI images for slides using Google Imagen or OpenAI DALL-E. Th
 
 ### Generation Request
 - count: integer, 1-10, required
-- service: "google-imagen" | "openai-dalle", required
-- API key must be configured for selected service
+- service: "openai-gpt-image" | "gemini-flash" | "gemini-pro", required
+- API key must be configured in environment (GEMINI_API_KEY or OPENAI_API_KEY)
 
 ### Tweak Request
 - imageId: valid UUID, must exist in slide
@@ -317,7 +317,7 @@ Users can generate AI images for slides using Google Imagen or OpenAI DALL-E. Th
 - id: UUID v4
 - filename: string, matches pattern `image-\d{3}\.jpg`
 - createdAt: ISO 8601 timestamp
-- service: "google-imagen" | "openai-dalle"
+- service: "openai-gpt-image" | "gemini-flash" | "gemini-pro"
 - prompt: string, 1-2000 characters
 - sourceImageId: null or valid UUID
 - isPinned: boolean
@@ -346,7 +346,7 @@ Users can generate AI images for slides using Google Imagen or OpenAI DALL-E. Th
 
 ### GenerateSection Component (in SlideEditor)
 - Variant count selector (1-10, default from settings)
-- Service selector (Google Imagen, OpenAI DALL-E)
+- Service selector (OpenAI GPT Image, Gemini Flash, Gemini Pro)
 - Generate button (prominent)
 - Show loading spinner during generation
 - Show progress: "Generating 3 of 5 images..."
