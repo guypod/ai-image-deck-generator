@@ -56,7 +56,8 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
  * @param {string} options.model - Model to use (FLASH or PRO)
  * @param {string} options.aspectRatio - Aspect ratio (default: "16:9")
  * @param {string} options.resolution - Resolution (default: "2K")
- * @param {Buffer} options.referenceImage - Optional reference image for editing
+ * @param {Buffer} options.referenceImage - Optional single reference image for editing (deprecated, use referenceImages)
+ * @param {Array<{buffer: Buffer, label: string}>} options.referenceImages - Optional array of reference images with labels
  * @param {boolean} options.useGoogleSearch - Enable Google Search grounding
  * @returns {Promise<Buffer>} - Image buffer (PNG format)
  */
@@ -67,6 +68,7 @@ export async function generateImage(prompt, options = {}) {
     aspectRatio = '16:9',
     resolution = '2K',
     referenceImage = null,
+    referenceImages = null,
     useGoogleSearch = false,
   } = options;
 
@@ -79,33 +81,42 @@ export async function generateImage(prompt, options = {}) {
 
     // Build request contents
     const contents = [];
+    const parts = [];
 
-    if (referenceImage) {
-      // Image editing: include reference image
+    // Add reference images if provided (entity images or theme images)
+    if (referenceImages && referenceImages.length > 0) {
+      for (const refImg of referenceImages) {
+        const base64Image = refImg.buffer.toString('base64');
+        parts.push({
+          inlineData: {
+            mimeType: 'image/png',
+            data: base64Image,
+          },
+        });
+        // Add a label for what this image represents
+        if (refImg.label) {
+          parts.push({
+            text: `[Reference image: ${refImg.label}]`,
+          });
+        }
+      }
+    } else if (referenceImage) {
+      // Backward compatibility: single reference image
       const base64Image = referenceImage.toString('base64');
-      contents.push({
-        parts: [
-          {
-            inline_data: {
-              mime_type: 'image/png',
-              data: base64Image,
-            },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      });
-    } else {
-      // Text-to-image: just text prompt
-      contents.push({
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
+      parts.push({
+        inlineData: {
+          mimeType: 'image/png',
+          data: base64Image,
+        },
       });
     }
+
+    // Add main text prompt
+    parts.push({
+      text: prompt,
+    });
+
+    contents.push({ parts });
 
     // Build generation config
     // Note: imageConfig with aspectRatio/imageSize is not currently supported by the API
@@ -148,8 +159,8 @@ export async function generateImage(prompt, options = {}) {
       throw new Error('No image generated in response');
     }
 
-    const parts = response.data.candidates[0].content.parts;
-    const imagePart = parts.find(part => part.inlineData);
+    const responseParts = response.data.candidates[0].content.parts;
+    const imagePart = responseParts.find(part => part.inlineData);
 
     if (!imagePart) {
       throw new Error('No image data found in response');

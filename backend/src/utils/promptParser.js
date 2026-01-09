@@ -193,10 +193,37 @@ export function suggestEntities(partial, entities = {}) {
   return suggestions;
 }
 
+/**
+ * Get entity image paths from referenced entities
+ * @param {string} text - Text containing @entity references
+ * @param {object} entities - Entity mapping from deck
+ * @param {string} deckId - Deck ID for building file paths
+ * @returns {Array<{entityName: string, imagePath: string}>} - Array of entity image info
+ */
+export function getReferencedEntityImages(text, entities = {}, deckId) {
+  const referencedEntities = extractEntityReferences(text);
+  const entityImages = [];
+
+  for (const entityName of referencedEntities) {
+    if (entities[entityName] && entities[entityName].images.length > 0) {
+      // Use the first image for each entity
+      const imageFilename = entities[entityName].images[0];
+      entityImages.push({
+        entityName,
+        imageFilename,
+        displayName: entityName.replace(/-/g, ' ')
+      });
+    }
+  }
+
+  return entityImages;
+}
+
 export default {
   parseEntityReferences,
   buildFullPrompt,
   extractEntityReferences,
   validateEntityReferences,
-  suggestEntities
+  suggestEntities,
+  getReferencedEntityImages
 };

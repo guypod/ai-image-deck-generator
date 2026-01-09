@@ -1,5 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { generateImagesSchema, tweakImageSchema } from '../models/Slide.js';
@@ -8,7 +9,7 @@ import * as googleImagen from '../services/googleImagen.js';
 import * as openaiDalle from '../services/openaiDalle.js';
 import * as geminiNanoBanana from '../services/geminiNanoBanana.js';
 import * as imageProcessor from '../services/imageProcessor.js';
-import { buildFullPrompt } from '../utils/promptParser.js';
+import { buildFullPrompt, getReferencedEntityImages } from '../utils/promptParser.js';
 import { executeInParallel } from '../utils/asyncPool.js';
 
 const router = express.Router();
@@ -55,6 +56,30 @@ router.post(
       console.warn(`Unknown entities in slide ${slideId}:`, unknownEntities);
     }
 
+    // Get referenced entity images
+    const referencedEntities = getReferencedEntityImages(
+      slide.imageDescription,
+      deck.entities,
+      deckId
+    );
+
+    // Load entity image buffers
+    const entityImageBuffers = [];
+    for (const entity of referencedEntities) {
+      try {
+        const imagePath = fileSystem.getEntityImagePath(deckId, entity.imageFilename);
+        const buffer = await fs.readFile(imagePath);
+        entityImageBuffers.push({
+          buffer,
+          label: entity.displayName
+        });
+      } catch (error) {
+        console.warn(`Failed to load entity image ${entity.imageFilename}:`, error.message);
+      }
+    }
+
+    console.log(`Generating images with ${entityImageBuffers.length} entity reference(s)`);
+
     // Generate images in parallel
     const tasks = Array.from({ length: count }, () => async () => {
       let imageBuffer;
@@ -77,7 +102,8 @@ router.post(
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.FLASH,
           aspectRatio: '16:9',
-          resolution: '2K'
+          resolution: '2K',
+          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
         });
       } else if (service === 'gemini-pro') {
         if (!process.env.GEMINI_API_KEY) {
@@ -87,7 +113,8 @@ router.post(
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.PRO,
           aspectRatio: '16:9',
-          resolution: '2K'
+          resolution: '2K',
+          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
         });
       } else {
         throw new Error(`Unknown service: ${service}`);
