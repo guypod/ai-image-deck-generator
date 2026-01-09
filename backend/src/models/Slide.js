@@ -15,10 +15,10 @@ const imageMetadataSchema = Joi.object({
     .iso()
     .required(),
   service: Joi.string()
-    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
+    .valid('openai-gpt-image', 'gemini-flash', 'gemini-pro')
     .required()
     .messages({
-      'any.only': 'Service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro'
+      'any.only': 'Service must be openai-gpt-image, gemini-flash, or gemini-pro'
     }),
   prompt: Joi.string()
     .min(1)
@@ -137,10 +137,10 @@ export const generateImagesSchema = Joi.object({
       'number.max': 'Count must not exceed 10'
     }),
   service: Joi.string()
-    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
+    .valid('openai-gpt-image', 'gemini-flash', 'gemini-pro')
     .default('gemini-pro')
     .messages({
-      'any.only': 'Service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro'
+      'any.only': 'Service must be openai-gpt-image, gemini-flash, or gemini-pro'
     })
 });
 

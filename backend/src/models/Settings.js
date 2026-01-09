@@ -19,10 +19,10 @@ const googleCredentialsSchema = Joi.object({
 // Settings schema
 export const settingsSchema = Joi.object({
   defaultService: Joi.string()
-    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
+    .valid('openai-gpt-image', 'gemini-flash', 'gemini-pro')
     .required()
     .messages({
-      'any.only': 'Default service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro',
+      'any.only': 'Default service must be openai-gpt-image, gemini-flash, or gemini-pro',
       'any.required': 'Default service is required'
     }),
   defaultVariantCount: Joi.number()
@@ -44,9 +44,9 @@ export const settingsSchema = Joi.object({
 // Validation for updating settings
 export const updateSettingsSchema = Joi.object({
   defaultService: Joi.string()
-    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
+    .valid('openai-gpt-image', 'gemini-flash', 'gemini-pro')
     .messages({
-      'any.only': 'Default service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro'
+      'any.only': 'Default service must be openai-gpt-image, gemini-flash, or gemini-pro'
     }),
   defaultVariantCount: Joi.number()
     .integer()

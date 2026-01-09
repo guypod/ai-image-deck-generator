@@ -47,7 +47,7 @@ async function testImageGeneration() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           count: 2,
-          service: 'google-imagen' // Use Google Imagen by default
+          service: 'gemini-pro' // Use Gemini Pro by default
         })
       }
     );
@@ -94,7 +94,7 @@ async function testImageGeneration() {
       console.error('   1. Start the app: npm run dev');
       console.error('   2. Go to http://localhost:3000');
       console.error('   3. Navigate to Settings');
-      console.error('   4. Enter your Google Imagen or OpenAI API key');
+      console.error('   4. Configure your API keys in backend/.env file (GEMINI_API_KEY or OPENAI_API_KEY)');
       console.error('   5. Run this test again');
     } else if (error.message.includes('quota')) {
       console.error('\n💡 API quota exceeded. Check your Google Cloud console.');

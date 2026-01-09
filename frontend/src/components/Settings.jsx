@@ -103,8 +103,7 @@ export default function Settings() {
             label="Default AI Service"
             onChange={(e) => setDefaultService(e.target.value)}
           >
-            <MenuItem value="google-imagen">Google Imagen (Vertex AI)</MenuItem>
-            <MenuItem value="openai-dalle">OpenAI DALL-E</MenuItem>
+            <MenuItem value="openai-gpt-image">OpenAI GPT Image</MenuItem>
             <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
             <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
           </Select>
