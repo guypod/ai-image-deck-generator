@@ -59,19 +59,31 @@ router.post(
       let imageBuffer;
 
       if (service === 'google-imagen') {
+        if (!process.env.GOOGLE_IMAGEN_API_KEY) {
+          throw new Error('GOOGLE_IMAGEN_API_KEY not configured in environment');
+        }
         imageBuffer = await googleImagen.generateImage(prompt, '16:9');
       } else if (service === 'openai-dalle') {
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error('OPENAI_API_KEY not configured in environment');
+        }
         imageBuffer = await openaiDalle.generateImage(prompt);
       } else if (service === 'gemini-flash') {
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error('GEMINI_API_KEY not configured in environment');
+        }
         imageBuffer = await geminiNanoBanana.generateImage(prompt, {
-          apiKey: settings.apiKeys.geminiNanoBanana,
+          apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.FLASH,
           aspectRatio: '16:9',
           resolution: '2K'
         });
       } else if (service === 'gemini-pro') {
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error('GEMINI_API_KEY not configured in environment');
+        }
         imageBuffer = await geminiNanoBanana.generateImage(prompt, {
-          apiKey: settings.apiKeys.geminiNanoBanana,
+          apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.PRO,
           aspectRatio: '16:9',
           resolution: '2K'

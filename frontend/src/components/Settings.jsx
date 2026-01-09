@@ -5,7 +5,6 @@ import {
   Container,
   Typography,
   Button,
-  TextField,
   Paper,
   Select,
   MenuItem,
@@ -13,27 +12,17 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
-  Divider,
 } from '@mui/material';
-import { ArrowBack, Check, Close } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import { useSettings } from '../hooks/useSettings';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { settings, loading, updateSettings, testApiKey } = useSettings();
+  const { settings, loading, updateSettings } = useSettings();
 
-  const [googleImagenKey, setGoogleImagenKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [geminiKey, setGeminiKey] = useState('');
   const [defaultService, setDefaultService] = useState('gemini-pro');
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
   const [saving, setSaving] = useState(false);
-  const [testingGoogle, setTestingGoogle] = useState(false);
-  const [testingOpenAI, setTestingOpenAI] = useState(false);
-  const [testingGemini, setTestingGemini] = useState(false);
-  const [googleStatus, setGoogleStatus] = useState(null);
-  const [openaiStatus, setOpenaiStatus] = useState(null);
-  const [geminiStatus, setGeminiStatus] = useState(null);
 
   useEffect(() => {
     if (settings) {
@@ -45,80 +34,15 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates = {
+      await updateSettings({
         defaultService,
         defaultVariantCount,
-      };
-
-      if (googleImagenKey && googleImagenKey !== '***masked***') {
-        updates.apiKeys = { ...updates.apiKeys, googleImagen: googleImagenKey };
-      }
-
-      if (openaiKey && openaiKey !== '***masked***') {
-        updates.apiKeys = { ...updates.apiKeys, openaiDalle: openaiKey };
-      }
-
-      if (geminiKey && geminiKey !== '***masked***') {
-        updates.apiKeys = { ...updates.apiKeys, geminiNanoBanana: geminiKey };
-      }
-
-      await updateSettings(updates);
+      });
       alert('Settings saved successfully');
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleTestGoogle = async () => {
-    if (!googleImagenKey || googleImagenKey === '***masked***') {
-      alert('Please enter a Google Imagen API key first');
-      return;
-    }
-
-    setTestingGoogle(true);
-    try {
-      const result = await testApiKey('google-imagen', googleImagenKey);
-      setGoogleStatus(result);
-    } catch (err) {
-      setGoogleStatus({ valid: false, message: err.message });
-    } finally {
-      setTestingGoogle(false);
-    }
-  };
-
-  const handleTestOpenAI = async () => {
-    if (!openaiKey || openaiKey === '***masked***') {
-      alert('Please enter an OpenAI API key first');
-      return;
-    }
-
-    setTestingOpenAI(true);
-    try {
-      const result = await testApiKey('openai-dalle', openaiKey);
-      setOpenaiStatus(result);
-    } catch (err) {
-      setOpenaiStatus({ valid: false, message: err.message });
-    } finally {
-      setTestingOpenAI(false);
-    }
-  };
-
-  const handleTestGemini = async () => {
-    if (!geminiKey || geminiKey === '***masked***') {
-      alert('Please enter a Gemini API key first');
-      return;
-    }
-
-    setTestingGemini(true);
-    try {
-      const result = await testApiKey('gemini-flash', geminiKey);
-      setGeminiStatus(result);
-    } catch (err) {
-      setGeminiStatus({ valid: false, message: err.message });
-    } finally {
-      setTestingGemini(false);
     }
   };
 
@@ -146,104 +70,28 @@ export default function Settings() {
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          API Keys
+          API Keys Configuration
         </Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" paragraph sx={{ mb: 1 }}>
+            API keys are now configured via environment variables in the backend <code>.env</code> file for better security.
+          </Typography>
+          <Typography variant="body2" component="div">
+            Required environment variables:
+            <ul style={{ marginTop: 8, marginBottom: 0 }}>
+              <li><code>GEMINI_API_KEY</code> - Get from <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer">Google AI Studio</a></li>
+              <li><code>OPENAI_API_KEY</code> - Get from <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">OpenAI Platform</a></li>
+              <li><code>GOOGLE_IMAGEN_API_KEY</code> - Get from <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">Google Cloud Console</a></li>
+            </ul>
+          </Typography>
+        </Alert>
+
         <Typography variant="body2" color="text.secondary" paragraph>
-          Configure your AI service API keys. Keys are stored securely on your local machine.
+          Add these keys to <code>backend/.env</code> and restart the backend server.
         </Typography>
+      </Paper>
 
-        <Box mb={3}>
-          <TextField
-            fullWidth
-            label="Google Imagen API Key"
-            type="password"
-            value={googleImagenKey}
-            onChange={(e) => setGoogleImagenKey(e.target.value)}
-            placeholder={settings?.apiKeys?.googleImagen ? '***masked***' : 'Enter your key...'}
-            helperText="Get your key from Google Cloud Console"
-            sx={{ mb: 1 }}
-          />
-          <Box display="flex" gap={1} alignItems="center">
-            <Button
-              size="small"
-              onClick={handleTestGoogle}
-              disabled={testingGoogle}
-            >
-              {testingGoogle ? 'Testing...' : 'Test Key'}
-            </Button>
-            {googleStatus && (
-              <Box display="flex" alignItems="center" gap={0.5}>
-                {googleStatus.valid ? <Check color="success" /> : <Close color="error" />}
-                <Typography variant="caption" color={googleStatus.valid ? 'success.main' : 'error.main'}>
-                  {googleStatus.message}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Box>
-
-        <Box mb={3}>
-          <TextField
-            fullWidth
-            label="OpenAI API Key"
-            type="password"
-            value={openaiKey}
-            onChange={(e) => setOpenaiKey(e.target.value)}
-            placeholder={settings?.apiKeys?.openaiDalle ? '***masked***' : 'Enter your key...'}
-            helperText="Get your key from OpenAI Platform"
-            sx={{ mb: 1 }}
-          />
-          <Box display="flex" gap={1} alignItems="center">
-            <Button
-              size="small"
-              onClick={handleTestOpenAI}
-              disabled={testingOpenAI}
-            >
-              {testingOpenAI ? 'Testing...' : 'Test Key'}
-            </Button>
-            {openaiStatus && (
-              <Box display="flex" alignItems="center" gap={0.5}>
-                {openaiStatus.valid ? <Check color="success" /> : <Close color="error" />}
-                <Typography variant="caption" color={openaiStatus.valid ? 'success.main' : 'error.main'}>
-                  {openaiStatus.message}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Box>
-
-        <Box mb={3}>
-          <TextField
-            fullWidth
-            label="Gemini Nano Banana API Key"
-            type="password"
-            value={geminiKey}
-            onChange={(e) => setGeminiKey(e.target.value)}
-            placeholder={settings?.apiKeys?.geminiNanoBanana ? '***masked***' : 'Enter your key...'}
-            helperText="Get your key from Google AI Studio (ai.google.dev)"
-            sx={{ mb: 1 }}
-          />
-          <Box display="flex" gap={1} alignItems="center">
-            <Button
-              size="small"
-              onClick={handleTestGemini}
-              disabled={testingGemini}
-            >
-              {testingGemini ? 'Testing...' : 'Test Key'}
-            </Button>
-            {geminiStatus && (
-              <Box display="flex" alignItems="center" gap={0.5}>
-                {geminiStatus.valid ? <Check color="success" /> : <Close color="error" />}
-                <Typography variant="caption" color={geminiStatus.valid ? 'success.main' : 'error.main'}>
-                  {geminiStatus.message}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 3 }} />
-
+      <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Defaults
         </Typography>
@@ -257,8 +105,8 @@ export default function Settings() {
           >
             <MenuItem value="google-imagen">Google Imagen (Vertex AI)</MenuItem>
             <MenuItem value="openai-dalle">OpenAI DALL-E</MenuItem>
-            <MenuItem value="gemini-flash">Gemini Nano Banana (Fast)</MenuItem>
-            <MenuItem value="gemini-pro">Gemini Nano Banana Pro (Quality)</MenuItem>
+            <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
+            <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
           </Select>
         </FormControl>
 

@@ -55,21 +55,20 @@ router.put('/:slideId', validate(updateSlideSchema), asyncHandler(async (req, re
 router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
   const { deckId, slideId } = req.params;
 
-  const deck = await fileSystem.getDeck(deckId);
-  const slide = await fileSystem.getSlide(deckId, slideId);
-  const settings = await fileSystem.getSettings();
-
-  if (!settings.apiKeys.openaiDalle) {
+  if (!process.env.OPENAI_API_KEY) {
     return res.status(400).json({
-      error: 'OpenAI API key not configured. Please add it in Settings.'
+      error: 'OPENAI_API_KEY not configured in environment. Please add it to your .env file.'
     });
   }
+
+  const deck = await fileSystem.getDeck(deckId);
+  const slide = await fileSystem.getSlide(deckId, slideId);
 
   const description = await openaiDescriptions.generateImageDescription(
     slide.speakerNotes,
     deck.visualStyle,
     deck.entities,
-    settings.apiKeys.openaiDalle
+    process.env.OPENAI_API_KEY
   );
 
   res.json({ description });

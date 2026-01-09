@@ -18,32 +18,6 @@ const googleCredentialsSchema = Joi.object({
 
 // Settings schema
 export const settingsSchema = Joi.object({
-  apiKeys: Joi.object({
-    googleImagen: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '')
-      .messages({
-        'string.min': 'Google Imagen API key must be at least 10 characters',
-        'string.max': 'Google Imagen API key must not exceed 500 characters'
-      }),
-    openaiDalle: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '')
-      .messages({
-        'string.min': 'OpenAI DALL-E API key must be at least 10 characters',
-        'string.max': 'OpenAI DALL-E API key must not exceed 500 characters'
-      }),
-    geminiNanoBanana: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '')
-      .messages({
-        'string.min': 'Gemini Nano Banana API key must be at least 10 characters',
-        'string.max': 'Gemini Nano Banana API key must not exceed 500 characters'
-      })
-  }).required(),
   defaultService: Joi.string()
     .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
     .required()
@@ -69,32 +43,6 @@ export const settingsSchema = Joi.object({
 
 // Validation for updating settings
 export const updateSettingsSchema = Joi.object({
-  apiKeys: Joi.object({
-    googleImagen: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '', '***masked***')
-      .messages({
-        'string.min': 'Google Imagen API key must be at least 10 characters',
-        'string.max': 'Google Imagen API key must not exceed 500 characters'
-      }),
-    openaiDalle: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '', '***masked***')
-      .messages({
-        'string.min': 'OpenAI DALL-E API key must be at least 10 characters',
-        'string.max': 'OpenAI DALL-E API key must not exceed 500 characters'
-      }),
-    geminiNanoBanana: Joi.string()
-      .min(10)
-      .max(500)
-      .allow(null, '', '***masked***')
-      .messages({
-        'string.min': 'Gemini Nano Banana API key must be at least 10 characters',
-        'string.max': 'Gemini Nano Banana API key must not exceed 500 characters'
-      })
-  }),
   defaultService: Joi.string()
     .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
     .messages({
@@ -111,25 +59,6 @@ export const updateSettingsSchema = Joi.object({
     })
 }).min(1); // At least one field must be present
 
-// Validation for testing API key
-export const testApiKeySchema = Joi.object({
-  service: Joi.string()
-    .valid('google-imagen', 'openai-dalle', 'gemini-flash', 'gemini-pro')
-    .required()
-    .messages({
-      'any.only': 'Service must be google-imagen, openai-dalle, gemini-flash, or gemini-pro',
-      'any.required': 'Service is required'
-    }),
-  apiKey: Joi.string()
-    .min(10)
-    .max(500)
-    .required()
-    .messages({
-      'string.min': 'API key must be at least 10 characters',
-      'string.max': 'API key must not exceed 500 characters',
-      'any.required': 'API key is required'
-    })
-});
 
 // Validation for export request
 export const exportDeckSchema = Joi.object({
@@ -143,26 +72,11 @@ export const exportDeckSchema = Joi.object({
 });
 
 /**
- * Mask API key for security (show only last 4 characters)
- */
-export function maskApiKey(key) {
-  if (!key || key.length <= 4) {
-    return '***masked***';
-  }
-  return '***' + key.slice(-4);
-}
-
-/**
  * Mask settings for client response
  */
 export function maskSettings(settings) {
   return {
     ...settings,
-    apiKeys: {
-      googleImagen: settings.apiKeys.googleImagen ? maskApiKey(settings.apiKeys.googleImagen) : null,
-      openaiDalle: settings.apiKeys.openaiDalle ? maskApiKey(settings.apiKeys.openaiDalle) : null,
-      geminiNanoBanana: settings.apiKeys.geminiNanoBanana ? maskApiKey(settings.apiKeys.geminiNanoBanana) : null
-    },
     googleSlides: {
       connected: !!settings.googleSlides?.credentials,
       email: settings.googleSlides?.credentials?.email || null
@@ -173,8 +87,6 @@ export function maskSettings(settings) {
 export default {
   settingsSchema,
   updateSettingsSchema,
-  testApiKeySchema,
   exportDeckSchema,
-  maskApiKey,
   maskSettings
 };

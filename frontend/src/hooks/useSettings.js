@@ -33,21 +33,11 @@ export function useSettings() {
     }
   };
 
-  const testApiKey = async (service, apiKey) => {
-    try {
-      const response = await settingsAPI.testApiKey({ service, apiKey });
-      return response.data;
-    } catch (err) {
-      throw new Error(err.message);
-    }
-  };
-
   return {
     settings,
     loading,
     error,
     refresh: fetchSettings,
     updateSettings,
-    testApiKey,
   };
 }

@@ -533,11 +533,6 @@ export async function getSettings() {
     if (error.code === 'ENOENT') {
       // Return defaults
       return {
-        apiKeys: {
-          googleImagen: null,
-          openaiDalle: null,
-          geminiNanoBanana: null
-        },
         defaultService: 'gemini-pro',
         defaultVariantCount: 2,
         googleSlides: {
