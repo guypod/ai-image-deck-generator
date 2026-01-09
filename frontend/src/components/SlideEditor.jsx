@@ -287,7 +287,9 @@ export default function SlideEditor() {
             </Paper>
           ) : (
             <Grid container spacing={2}>
-              {slide.generatedImages.map((image) => (
+              {[...slide.generatedImages]
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .map((image) => (
                 <Grid item xs={12} key={image.id}>
                   <Card>
                     {image.isPinned && (
