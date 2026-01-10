@@ -89,15 +89,23 @@ Each deck contains multiple slides. Slides have speaker notes, image description
 
 **API:**
 - `PUT /api/decks/:deckId/slides/:slideId`
-- Request body: `{ "speakerNotes": "...", "imageDescription": "..." }`
+- Request body: `{ "speakerNotes": "...", "imageDescription": "...", "overrideVisualStyle": "...", "noImages": false }`
 - Response: Updated slide object
 
 **Requirements:**
 - Validate speakerNotes (0-5000 characters)
 - Validate imageDescription (0-2000 characters)
+- Validate overrideVisualStyle (0-1000 characters, nullable)
+- Validate noImages (boolean)
 - Preserve generatedImages array
 - Atomic write to `slide.json`
 - Update deck's updatedAt timestamp
+
+**Visual Style Override:**
+- When `overrideVisualStyle` is set, it completely replaces the deck's visual style for this slide
+- The deck's visual style is NOT included when override is present
+- Used in: image generation, description generation, bulk operations
+- If override is null/empty, deck's visual style is used
 
 [@test](../tests/backend/routes/slides.test.js#update-slide) - Update slide API endpoint
 [@test](../tests/frontend/components/SlideEditor.test.js#update-content) - Update slide content UI

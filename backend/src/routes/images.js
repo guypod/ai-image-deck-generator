@@ -387,9 +387,12 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
     // Generate for each slide sequentially (to respect rate limits)
     for (const slide of slides) {
       try {
+        // Use slide's override visual style if present, otherwise use deck's visual style
+        const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
+
         // Build prompt
         const { prompt } = buildFullPrompt(
-          deck.visualStyle,
+          visualStyle,
           slide.imageDescription,
           deck.entities
         );
