@@ -29,13 +29,21 @@ import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
 import { slideAPI } from '../services/api';
 
-export default function SlideEditor() {
-  const { deckId, slideId } = useParams();
+export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: slideIdProp, isEmbedded = false }) {
+  const { deckId: deckIdParam, slideId: slideIdParam } = useParams();
   const navigate = useNavigate();
+
+  // Use props if embedded, otherwise use URL params
+  const deckId = isEmbedded ? deckIdProp : deckIdParam;
+  const slideId = isEmbedded ? slideIdProp : slideIdParam;
+
   const { deck } = useDeck(deckId);
-  const { slide, updateSlide, pinImage, deleteImage, refresh } = useSlide(deckId, slideId);
+  const { slide: slideFromHook, updateSlide, pinImage, deleteImage, refresh } = useSlide(deckId, slideId);
   const { generating, generateImages, tweakImage } = useImages(deckId, slideId);
   const { createSlide } = useSlides(deckId);
+
+  // Use slideData prop if embedded, otherwise use hook data
+  const slide = isEmbedded ? slideData : slideFromHook;
 
   const [speakerNotes, setSpeakerNotes] = useState('');
   const [imageDescription, setImageDescription] = useState('');
@@ -163,26 +171,38 @@ export default function SlideEditor() {
 
   const pinnedImage = slide.generatedImages.find(img => img.isPinned);
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate(`/decks/${deckId}`)}
-        >
-          Back to Deck
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleCreateNextSlide}
-        >
-          Next Slide
-        </Button>
-      </Box>
+  const content = (
+    <>
+      {!isEmbedded && (
+        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => navigate(`/decks/${deckId}`)}
+          >
+            Back to Deck
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateNextSlide}
+          >
+            Next Slide
+          </Button>
+        </Box>
+      )}
 
-      <Typography variant="h4" gutterBottom>
-        Slide {slide.order + 1}
-      </Typography>
+      {isEmbedded && (
+        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <Typography variant="h5">
+            Slide {slide.order + 1}
+          </Typography>
+        </Box>
+      )}
+
+      {!isEmbedded && (
+        <Typography variant="h4" gutterBottom>
+          Slide {slide.order + 1}
+        </Typography>
+      )}
 
       <Grid container spacing={3}>
         {/* Left Column - Content */}
@@ -384,6 +404,17 @@ export default function SlideEditor() {
           )}
         </Grid>
       </Grid>
+    </>
+  );
+
+  // Wrap with Container only if not embedded
+  return isEmbedded ? (
+    <Box sx={{ height: '100%', overflow: 'auto' }}>
+      {content}
+    </Box>
+  ) : (
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {content}
     </Container>
   );
 }

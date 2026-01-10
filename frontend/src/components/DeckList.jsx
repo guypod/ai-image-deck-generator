@@ -36,7 +36,7 @@ export default function DeckList() {
       const newDeck = await createDeck({ name: deckName, visualStyle: '' });
       setOpenDialog(false);
       setDeckName('');
-      navigate(`/decks/${newDeck.id}`);
+      navigate(`/decks/${newDeck.id}/edit`);
     } catch (err) {
       alert(`Error creating deck: ${err.message}`);
     } finally {
@@ -119,9 +119,9 @@ export default function DeckList() {
                   <Button
                     size="small"
                     startIcon={<Edit />}
-                    onClick={() => navigate(`/decks/${deck.id}`)}
+                    onClick={() => navigate(`/decks/${deck.id}/edit`)}
                   >
-                    Edit
+                    Edit Slides
                   </Button>
                   <IconButton
                     size="small"

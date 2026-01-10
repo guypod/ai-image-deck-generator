@@ -7,6 +7,7 @@ import { Settings as SettingsIcon } from '@mui/icons-material';
 import DeckList from './components/DeckList';
 import DeckEditor from './components/DeckEditor';
 import SlideEditor from './components/SlideEditor';
+import SlideDeckView from './components/SlideDeckView';
 import Settings from './components/Settings';
 
 const theme = createTheme({
@@ -55,6 +56,7 @@ function App() {
           <Routes>
             <Route path="/" element={<DeckList />} />
             <Route path="/decks/:deckId" element={<DeckEditor />} />
+            <Route path="/decks/:deckId/edit" element={<SlideDeckView />} />
             <Route path="/decks/:deckId/slides/:slideId" element={<SlideEditor />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
