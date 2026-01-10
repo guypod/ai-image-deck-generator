@@ -47,8 +47,8 @@ router.get('/:deckId', asyncHandler(async (req, res) => {
  * Create new deck
  */
 router.post('/', validate(createDeckSchema), asyncHandler(async (req, res) => {
-  const { name, visualStyle, storageType, isTest } = req.body;
-  const deck = await fileSystem.createDeck(name, visualStyle, storageType, isTest);
+  const { name, visualStyle, isTest } = req.body;
+  const deck = await fileSystem.createDeck(name, visualStyle, isTest);
   res.status(201).json(deck);
 }));
 

@@ -14,10 +14,6 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
@@ -36,14 +32,12 @@ export default function DeckEditor() {
   const [editingStyle, setEditingStyle] = useState(false);
   const [name, setName] = useState('');
   const [visualStyle, setVisualStyle] = useState('');
-  const [storageType, setStorageType] = useState('local');
   const [isTest, setIsTest] = useState(false);
 
   React.useEffect(() => {
     if (deck) {
       setName(deck.name);
       setVisualStyle(deck.visualStyle);
-      setStorageType(deck.storageType || 'local');
       setIsTest(deck.isTest || false);
     }
   }, [deck]);
@@ -65,15 +59,6 @@ export default function DeckEditor() {
     try {
       await updateDeck({ visualStyle });
       setEditingStyle(false);
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  };
-
-  const handleStorageTypeChange = async (newStorageType) => {
-    try {
-      await updateDeck({ storageType: newStorageType });
-      setStorageType(newStorageType);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -199,28 +184,6 @@ export default function DeckEditor() {
               </Typography>
             </Box>
           )}
-        </Box>
-
-        <Box mb={3}>
-          <Typography variant="subtitle2" gutterBottom>
-            Storage Type
-          </Typography>
-          <FormControl fullWidth size="small">
-            <InputLabel>Storage Location</InputLabel>
-            <Select
-              value={storageType}
-              label="Storage Location"
-              onChange={(e) => handleStorageTypeChange(e.target.value)}
-            >
-              <MenuItem value="local">Local File System</MenuItem>
-              <MenuItem value="google-drive">Google Drive</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            {storageType === 'google-drive'
-              ? 'Deck will be stored in a folder at the root of your Google Drive'
-              : 'Deck is stored locally on your computer'}
-          </Typography>
         </Box>
 
         <Box mb={3}>

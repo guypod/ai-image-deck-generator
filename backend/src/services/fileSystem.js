@@ -114,7 +114,7 @@ export async function getDeck(deckId) {
 /**
  * Create new deck
  */
-export async function createDeck(name, visualStyle = '', storageType = 'local', isTest = false) {
+export async function createDeck(name, visualStyle = '', isTest = false) {
   await initStorage();
 
   const deckId = uuidv4();
@@ -128,7 +128,6 @@ export async function createDeck(name, visualStyle = '', storageType = 'local', 
     visualStyle,
     entities: {},
     slides: [],
-    storageType,
     isTest
   };
 
@@ -160,7 +159,6 @@ export async function updateDeck(deckId, updates) {
   // Update allowed fields
   if (updates.name !== undefined) deck.name = updates.name;
   if (updates.visualStyle !== undefined) deck.visualStyle = updates.visualStyle;
-  if (updates.storageType !== undefined) deck.storageType = updates.storageType;
   if (updates.isTest !== undefined) deck.isTest = updates.isTest;
 
   deck.updatedAt = new Date().toISOString();

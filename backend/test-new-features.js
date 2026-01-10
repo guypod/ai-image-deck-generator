@@ -1,8 +1,7 @@
 /**
  * Test script for new features:
- * 1. Storage type (local vs google-drive)
- * 2. Visual style override per slide
- * 3. No images flag per slide
+ * 1. Visual style override per slide
+ * 2. No images flag per slide
  */
 
 import fetch from 'node-fetch';
@@ -13,15 +12,14 @@ async function testNewFeatures() {
   console.log('=== Testing New Features ===\n');
 
   try {
-    // 1. Create a deck with Google Drive storage
-    console.log('1. Creating deck with Google Drive storage...');
+    // 1. Create a deck
+    console.log('1. Creating deck...');
     const createDeckRes = await fetch(`${BASE_URL}/api/decks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: 'Test Deck - New Features',
-        visualStyle: 'Modern, professional style',
-        storageType: 'google-drive'
+        visualStyle: 'Modern, professional style'
       })
     });
 
@@ -32,36 +30,9 @@ async function testNewFeatures() {
 
     const deck = await createDeckRes.json();
     console.log(`✓ Deck created with ID: ${deck.id}`);
-    console.log(`✓ Storage type: ${deck.storageType}`);
 
-    if (deck.storageType !== 'google-drive') {
-      throw new Error(`Expected storage type 'google-drive', got '${deck.storageType}'`);
-    }
-
-    // 2. Update storage type to local
-    console.log('\n2. Updating storage type to local...');
-    const updateDeckRes = await fetch(`${BASE_URL}/api/decks/${deck.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        storageType: 'local'
-      })
-    });
-
-    if (!updateDeckRes.ok) {
-      const error = await updateDeckRes.json();
-      throw new Error(`Failed to update deck: ${error.error}`);
-    }
-
-    const updatedDeck = await updateDeckRes.json();
-    console.log(`✓ Storage type updated to: ${updatedDeck.storageType}`);
-
-    if (updatedDeck.storageType !== 'local') {
-      throw new Error(`Expected storage type 'local', got '${updatedDeck.storageType}'`);
-    }
-
-    // 3. Create a slide
-    console.log('\n3. Creating slide...');
+    // 2. Create a slide
+    console.log('\n2. Creating slide...');
     const createSlideRes = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,8 +50,8 @@ async function testNewFeatures() {
     const slide = await createSlideRes.json();
     console.log(`✓ Slide created with ID: ${slide.id}`);
 
-    // 4. Update slide with override visual style
-    console.log('\n4. Adding override visual style to slide...');
+    // 3. Update slide with override visual style
+    console.log('\n3. Adding override visual style to slide...');
     const updateSlideRes = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides/${slide.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -101,8 +72,8 @@ async function testNewFeatures() {
       throw new Error('Override visual style not saved');
     }
 
-    // 5. Mark slide as "no images"
-    console.log('\n5. Marking slide as "no images"...');
+    // 4. Mark slide as "no images"
+    console.log('\n4. Marking slide as "no images"...');
     const updateSlideRes2 = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides/${slide.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -123,8 +94,8 @@ async function testNewFeatures() {
       throw new Error('No images flag not saved');
     }
 
-    // 6. Try to generate images (should fail)
-    console.log('\n6. Attempting to generate images for "no images" slide...');
+    // 5. Try to generate images (should fail)
+    console.log('\n5. Attempting to generate images for "no images" slide...');
     const generateRes = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides/${slide.id}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -145,8 +116,8 @@ async function testNewFeatures() {
       throw new Error(`Expected error message about "no images", got: ${errorData.error}`);
     }
 
-    // 7. Remove "no images" flag and test override visual style with generation
-    console.log('\n7. Removing "no images" flag and testing with override visual style...');
+    // 6. Remove "no images" flag and test override visual style with generation
+    console.log('\n6. Removing "no images" flag and testing with override visual style...');
     const updateSlideRes3 = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides/${slide.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -163,7 +134,7 @@ async function testNewFeatures() {
     console.log('✓ No images flag removed');
 
     // Now generate with override visual style
-    console.log('\n8. Generating image with override visual style...');
+    console.log('\n7. Generating image with override visual style...');
     const generateRes2 = await fetch(`${BASE_URL}/api/decks/${deck.id}/slides/${slide.id}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -185,8 +156,8 @@ async function testNewFeatures() {
     // (We can't directly verify this, but we can confirm it didn't fail)
     console.log('✓ Override visual style was used in generation');
 
-    // 9. Clean up - delete the test deck
-    console.log('\n9. Cleaning up test deck...');
+    // 8. Clean up - delete the test deck
+    console.log('\n8. Cleaning up test deck...');
     const deleteRes = await fetch(`${BASE_URL}/api/decks/${deck.id}`, {
       method: 'DELETE'
     });
