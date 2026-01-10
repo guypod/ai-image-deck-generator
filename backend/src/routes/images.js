@@ -42,9 +42,19 @@ router.post(
     const slide = await fileSystem.getSlide(deckId, slideId);
     const settings = await fileSystem.getSettings();
 
+    // Check if slide is marked as no images
+    if (slide.noImages) {
+      return res.status(400).json({
+        error: 'This slide is marked as "no images". Remove this flag to generate images.'
+      });
+    }
+
+    // Use slide's override visual style if present, otherwise use deck's visual style
+    const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
+
     // Build full prompt (including theme images)
     const { prompt, unknownEntities } = buildFullPrompt(
-      deck.visualStyle,
+      visualStyle,
       slide.imageDescription,
       deck.entities,
       deck.themeImages || []

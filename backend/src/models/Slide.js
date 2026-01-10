@@ -66,6 +66,15 @@ export const slideSchema = Joi.object({
     .messages({
       'string.max': 'Image description must not exceed 2000 characters'
     }),
+  overrideVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .default(null)
+    .messages({
+      'string.max': 'Override visual style must not exceed 1000 characters'
+    }),
+  noImages: Joi.boolean()
+    .default(false),
   generatedImages: Joi.array()
     .items(imageMetadataSchema)
     .default([])
@@ -86,7 +95,16 @@ export const createSlideSchema = Joi.object({
     .default('')
     .messages({
       'string.max': 'Image description must not exceed 2000 characters'
-    })
+    }),
+  overrideVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .default(null)
+    .messages({
+      'string.max': 'Override visual style must not exceed 1000 characters'
+    }),
+  noImages: Joi.boolean()
+    .default(false)
 });
 
 // Validation for slide update
@@ -103,6 +121,13 @@ export const updateSlideSchema = Joi.object({
     .messages({
       'string.max': 'Image description must not exceed 2000 characters'
     }),
+  overrideVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .messages({
+      'string.max': 'Override visual style must not exceed 1000 characters'
+    }),
+  noImages: Joi.boolean(),
   order: Joi.number()
     .integer()
     .min(0)

@@ -108,7 +108,7 @@ export async function getDeck(deckId) {
 /**
  * Create new deck
  */
-export async function createDeck(name, visualStyle = '') {
+export async function createDeck(name, visualStyle = '', storageType = 'local') {
   await initStorage();
 
   const deckId = uuidv4();
@@ -121,7 +121,8 @@ export async function createDeck(name, visualStyle = '') {
     updatedAt: now,
     visualStyle,
     entities: {},
-    slides: []
+    slides: [],
+    storageType
   };
 
   const deckDir = path.join(STORAGE_DIR, `deck-${deckId}`);
@@ -152,6 +153,7 @@ export async function updateDeck(deckId, updates) {
   // Update allowed fields
   if (updates.name !== undefined) deck.name = updates.name;
   if (updates.visualStyle !== undefined) deck.visualStyle = updates.visualStyle;
+  if (updates.storageType !== undefined) deck.storageType = updates.storageType;
 
   deck.updatedAt = new Date().toISOString();
 
@@ -366,6 +368,8 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     order: deck.slides.length,
     speakerNotes,
     imageDescription,
+    overrideVisualStyle: null,
+    noImages: false,
     generatedImages: []
   };
 
@@ -402,6 +406,8 @@ export async function updateSlide(deckId, slideId, updates) {
   if (updates.speakerNotes !== undefined) slide.speakerNotes = updates.speakerNotes;
   if (updates.imageDescription !== undefined) slide.imageDescription = updates.imageDescription;
   if (updates.order !== undefined) slide.order = updates.order;
+  if (updates.overrideVisualStyle !== undefined) slide.overrideVisualStyle = updates.overrideVisualStyle;
+  if (updates.noImages !== undefined) slide.noImages = updates.noImages;
 
   const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);

@@ -60,6 +60,12 @@ export const deckSchema = Joi.object({
     .messages({
       'array.max': 'Maximum 10 theme images allowed per deck'
     }),
+  storageType: Joi.string()
+    .valid('local', 'google-drive')
+    .default('local')
+    .messages({
+      'any.only': 'Storage type must be either "local" or "google-drive"'
+    }),
   slides: Joi.array()
     .items(Joi.string())
     .default([])
@@ -82,6 +88,12 @@ export const createDeckSchema = Joi.object({
     .default('')
     .messages({
       'string.max': 'Visual style must not exceed 1000 characters'
+    }),
+  storageType: Joi.string()
+    .valid('local', 'google-drive')
+    .default('local')
+    .messages({
+      'any.only': 'Storage type must be either "local" or "google-drive"'
     })
 });
 
@@ -99,6 +111,11 @@ export const updateDeckSchema = Joi.object({
     .allow('')
     .messages({
       'string.max': 'Visual style must not exceed 1000 characters'
+    }),
+  storageType: Joi.string()
+    .valid('local', 'google-drive')
+    .messages({
+      'any.only': 'Storage type must be either "local" or "google-drive"'
     })
 }).min(1); // At least one field must be present
 

@@ -19,6 +19,9 @@ import {
   CardActions,
   IconButton,
   Chip,
+  Checkbox,
+  FormControlLabel,
+  Divider,
 } from '@mui/material';
 import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
@@ -36,6 +39,8 @@ export default function SlideEditor() {
 
   const [speakerNotes, setSpeakerNotes] = useState('');
   const [imageDescription, setImageDescription] = useState('');
+  const [overrideVisualStyle, setOverrideVisualStyle] = useState('');
+  const [noImages, setNoImages] = useState(false);
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -45,13 +50,20 @@ export default function SlideEditor() {
     if (slide) {
       setSpeakerNotes(slide.speakerNotes);
       setImageDescription(slide.imageDescription);
+      setOverrideVisualStyle(slide.overrideVisualStyle || '');
+      setNoImages(slide.noImages || false);
       setUnsavedChanges(false);
     }
   }, [slide]);
 
   const handleSave = async () => {
     try {
-      await updateSlide({ speakerNotes, imageDescription });
+      await updateSlide({
+        speakerNotes,
+        imageDescription,
+        overrideVisualStyle: overrideVisualStyle || null,
+        noImages
+      });
       setUnsavedChanges(false);
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -214,6 +226,35 @@ export default function SlideEditor() {
               </Button>
             </Box>
 
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              label="Override Visual Style (Optional)"
+              value={overrideVisualStyle}
+              onChange={(e) => {
+                setOverrideVisualStyle(e.target.value);
+                setUnsavedChanges(true);
+              }}
+              placeholder="Leave empty to use deck-wide visual style..."
+              helperText="Override the deck-wide visual style for this slide only"
+              sx={{ mb: 2 }}
+            />
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={noImages}
+                  onChange={(e) => {
+                    setNoImages(e.target.checked);
+                    setUnsavedChanges(true);
+                  }}
+                />
+              }
+              label="No Images (placeholder slide for export)"
+              sx={{ mb: 2 }}
+            />
+
             {unsavedChanges && (
               <Alert severity="info" sx={{ mb: 2 }}>
                 <Button onClick={handleSave} size="small">
@@ -258,16 +299,23 @@ export default function SlideEditor() {
               size="large"
               startIcon={(generating || generatingDescription) ? <CircularProgress size={20} /> : <PhotoCamera />}
               onClick={handleGenerate}
-              disabled={generating || generatingDescription}
+              disabled={generating || generatingDescription || noImages}
             >
               {generatingDescription ? 'Creating Description...' :
                generating ? 'Generating Images...' :
+               noImages ? 'Image Generation Disabled' :
                'Generate Images'}
             </Button>
 
-            {!imageDescription.trim() && (
+            {!imageDescription.trim() && !noImages && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                 Description will be auto-generated using ChatGPT from your speaker notes
+              </Typography>
+            )}
+
+            {noImages && (
+              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+                This slide is marked as "no images" - image generation is disabled
               </Typography>
             )}
           </Paper>
