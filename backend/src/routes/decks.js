@@ -6,6 +6,7 @@ import { createDeckSchema, updateDeckSchema, addEntitySchema, entityNameSchema, 
 import * as fileSystem from '../services/fileSystem.js';
 import { parseTextToSlides } from '../utils/textParser.js';
 import * as openaiDescriptions from '../services/openaiDescriptions.js';
+import { executeInParallel } from '../utils/asyncPool.js';
 
 const router = express.Router();
 
@@ -251,49 +252,58 @@ router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) =>
   // Get merged entities
   const mergedEntities = await fileSystem.getMergedEntities(deckId);
 
-  const results = [];
-  let regenerated = 0;
-  let failed = 0;
+  // Create tasks for parallel execution
+  const tasks = unlockedSlides.map(slide => async () => {
+    // Use slide's override visual style if present, otherwise use deck's visual style
+    const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
 
-  for (const slide of unlockedSlides) {
-    try {
-      // Use slide's override visual style if present, otherwise use deck's visual style
-      const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
+    const description = await openaiDescriptions.generateImageDescription(
+      slide.speakerNotes,
+      visualStyle,
+      mergedEntities,
+      deck.themeImages || [],
+      process.env.OPENAI_API_KEY
+    );
 
-      const description = await openaiDescriptions.generateImageDescription(
-        slide.speakerNotes,
-        visualStyle,
-        mergedEntities,
-        deck.themeImages || [],
-        process.env.OPENAI_API_KEY
-      );
+    // Update the slide
+    await fileSystem.updateSlide(deckId, slide.id, { imageDescription: description });
 
-      // Update the slide
-      await fileSystem.updateSlide(deckId, slide.id, { imageDescription: description });
+    return {
+      slideId: slide.id,
+      description
+    };
+  });
 
-      results.push({
-        slideId: slide.id,
+  // Execute in parallel with concurrency limit of 5
+  const results = await executeInParallel(tasks, 5);
+
+  // Count successful and failed
+  const regenerated = results.filter(r => r.status === 'success').length;
+  const failed = results.filter(r => r.status === 'failed').length;
+
+  // Format results
+  const formattedResults = results.map((result, index) => {
+    if (result.status === 'success') {
+      return {
+        slideId: result.data.slideId,
         status: 'success',
-        description
-      });
-
-      regenerated++;
-    } catch (error) {
-      results.push({
-        slideId: slide.id,
+        description: result.data.description
+      };
+    } else {
+      return {
+        slideId: unlockedSlides[index].id,
         status: 'failed',
-        error: error.message
-      });
-      failed++;
+        error: result.error
+      };
     }
-  }
+  });
 
   res.json({
     message: `Regenerated ${regenerated} description(s)`,
     regenerated,
     failed,
     skipped: slides.length - unlockedSlides.length,
-    results
+    results: formattedResults
   });
 }));
 
