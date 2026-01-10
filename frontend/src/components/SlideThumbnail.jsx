@@ -32,7 +32,7 @@ export default function SlideThumbnail({
     }
 
     // Find pinned image or use first image
-    const pinnedImage = slide.generatedImages.find(img => img.pinned);
+    const pinnedImage = slide.generatedImages.find(img => img.isPinned);
     const imageToShow = pinnedImage || slide.generatedImages[0];
 
     return `/api/decks/${deckId}/slides/${slide.id}/images/${imageToShow.id}`;

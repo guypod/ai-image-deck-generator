@@ -22,6 +22,10 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
@@ -54,6 +58,10 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [lastUsedPrompt, setLastUsedPrompt] = useState('');
+  const [tweakDialogOpen, setTweakDialogOpen] = useState(false);
+  const [tweakImageId, setTweakImageId] = useState(null);
+  const [tweakPrompt, setTweakPrompt] = useState('');
+  const [tweakCount, setTweakCount] = useState(2);
 
   useEffect(() => {
     if (slide) {
@@ -167,6 +175,35 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       navigate(`/decks/${deckId}/slides/${newSlide.id}`);
     } catch (err) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleOpenTweakDialog = (imageId) => {
+    setTweakImageId(imageId);
+    setTweakPrompt('');
+    setTweakCount(2);
+    setTweakDialogOpen(true);
+  };
+
+  const handleCloseTweakDialog = () => {
+    setTweakDialogOpen(false);
+    setTweakImageId(null);
+    setTweakPrompt('');
+  };
+
+  const handleSubmitTweak = async () => {
+    if (!tweakPrompt.trim()) {
+      alert('Please enter a tweak prompt');
+      return;
+    }
+
+    try {
+      await tweakImage(tweakImageId, tweakPrompt, tweakCount);
+      await refresh();
+      if (isEmbedded && onSlideChange) onSlideChange();
+      handleCloseTweakDialog();
+    } catch (err) {
+      alert(`Error tweaking image: ${err.message}`);
     }
   };
 
@@ -409,13 +446,23 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                         size="small"
                         onClick={() => handlePinImage(image.id)}
                         color={image.isPinned ? 'primary' : 'default'}
+                        title="Pin as thumbnail"
                       >
                         <PushPin />
                       </IconButton>
                       <IconButton
                         size="small"
+                        color="info"
+                        onClick={() => handleOpenTweakDialog(image.id)}
+                        title="Tweak this image"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
                         color="error"
                         onClick={() => handleDeleteImage(image.id)}
+                        title="Delete image"
                       >
                         <Delete />
                       </IconButton>
@@ -432,6 +479,52 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           )}
         </Grid>
       </Grid>
+
+      {/* Tweak Image Dialog */}
+      <Dialog open={tweakDialogOpen} onClose={handleCloseTweakDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Tweak Image</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Describe how you want to modify this image. The AI will use the current image as a reference and apply your changes.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            label="Tweak Prompt"
+            value={tweakPrompt}
+            onChange={(e) => setTweakPrompt(e.target.value)}
+            placeholder="e.g., 'make the lighting warmer', 'add more contrast', 'change background to sunset'"
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Number of Variants</InputLabel>
+            <Select
+              value={tweakCount}
+              label="Number of Variants"
+              onChange={(e) => setTweakCount(e.target.value)}
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <MenuItem key={n} value={n}>
+                  {n}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTweakDialog}>Cancel</Button>
+          <Button
+            onClick={handleSubmitTweak}
+            variant="contained"
+            disabled={generating || !tweakPrompt.trim()}
+            startIcon={generating ? <CircularProgress size={20} /> : null}
+          >
+            {generating ? 'Tweaking...' : 'Generate Tweaked Images'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 

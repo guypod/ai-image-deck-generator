@@ -4,6 +4,29 @@
  */
 
 /**
+ * Find entity by name (case-insensitive)
+ * @param {string} entityName - Entity name to search for
+ * @param {object} entities - Entity mapping from deck
+ * @returns {object|null} - Entity data or null if not found
+ */
+function findEntityCaseInsensitive(entityName, entities = {}) {
+  // First try exact match (for performance)
+  if (entities[entityName]) {
+    return { key: entityName, entity: entities[entityName] };
+  }
+
+  // Then try case-insensitive match
+  const lowerEntityName = entityName.toLowerCase();
+  for (const [key, entity] of Object.entries(entities)) {
+    if (key.toLowerCase() === lowerEntityName) {
+      return { key, entity };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parse and replace @entity references in text
  * @param {string} text - Text containing @entity references
  * @param {object} entities - Entity mapping from deck (entityName -> entity data)
@@ -27,9 +50,11 @@ export function parseEntityReferences(text, entities = {}) {
     const fullMatch = match[0]; // e.g., "@The-Office"
     const entityName = match[1]; // e.g., "The-Office"
 
-    if (entities[entityName]) {
+    const found = findEntityCaseInsensitive(entityName, entities);
+    if (found) {
       // Replace @Entity-Name with "Entity Name" (remove hyphens, normalize)
-      const humanReadableName = entityName.replace(/-/g, ' ');
+      // Use the actual entity key for consistency
+      const humanReadableName = found.key.replace(/-/g, ' ');
       parsedText = parsedText.replace(fullMatch, humanReadableName);
     } else {
       // Entity not found, keep original but track it
@@ -136,7 +161,8 @@ export function validateEntityReferences(text, entities = {}) {
   const unknownEntities = [];
 
   for (const entityName of referencedEntities) {
-    if (!entities[entityName]) {
+    const found = findEntityCaseInsensitive(entityName, entities);
+    if (!found) {
       unknownEntities.push(entityName);
     }
   }
@@ -205,13 +231,14 @@ export function getReferencedEntityImages(text, entities = {}, deckId) {
   const entityImages = [];
 
   for (const entityName of referencedEntities) {
-    if (entities[entityName] && entities[entityName].images.length > 0) {
+    const found = findEntityCaseInsensitive(entityName, entities);
+    if (found && found.entity.images.length > 0) {
       // Use the first image for each entity
-      const imageFilename = entities[entityName].images[0];
+      const imageFilename = found.entity.images[0];
       entityImages.push({
-        entityName,
+        entityName: found.key, // Use the actual entity key
         imageFilename,
-        displayName: entityName.replace(/-/g, ' ')
+        displayName: found.key.replace(/-/g, ' ')
       });
     }
   }
