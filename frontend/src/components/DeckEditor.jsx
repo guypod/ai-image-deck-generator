@@ -196,7 +196,7 @@ export default function DeckEditor() {
         <Button
           variant="outlined"
           startIcon={<Close />}
-          onClick={() => navigate(`/decks/${deckId}/slides`)}
+          onClick={() => navigate(`/decks/${deckId}/edit`)}
         >
           Close Settings
         </Button>
