@@ -29,7 +29,7 @@ import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
 import { slideAPI } from '../services/api';
 
-export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: slideIdProp, isEmbedded = false }) {
+export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: slideIdProp, isEmbedded = false, onSlideChange }) {
   const { deckId: deckIdParam, slideId: slideIdParam } = useParams();
   const navigate = useNavigate();
 
@@ -113,6 +113,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         // Save the generated description
         await updateSlide({ speakerNotes, imageDescription: finalDescription });
         await refresh();
+        if (isEmbedded && onSlideChange) onSlideChange();
       } catch (err) {
         // Error already alerted in handleGenerateDescription
         return;
@@ -124,6 +125,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     try {
       await generateImages(variantCount, service);
       await refresh();
+      if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
       alert(`Error generating images: ${err.message}`);
     }
@@ -132,6 +134,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const handlePinImage = async (imageId) => {
     try {
       await pinImage(imageId);
+      if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -141,6 +144,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     if (!confirm('Delete this image?')) return;
     try {
       await deleteImage(imageId);
+      if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
       alert(`Error: ${err.message}`);
     }

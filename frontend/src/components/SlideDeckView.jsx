@@ -26,7 +26,7 @@ export default function SlideDeckView() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { deck, loading: deckLoading, error: deckError } = useDeck(deckId);
-  const { slides, loading: slidesLoading, createSlide, deleteSlide, reorderSlides } = useSlides(deckId);
+  const { slides, loading: slidesLoading, createSlide, deleteSlide, reorderSlides, refresh: refreshSlides } = useSlides(deckId);
 
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -214,6 +214,7 @@ export default function SlideDeckView() {
               deckId={deckId}
               slideId={selectedSlide.id}
               isEmbedded={true}
+              onSlideChange={refreshSlides}
             />
           ) : (
             <Box
