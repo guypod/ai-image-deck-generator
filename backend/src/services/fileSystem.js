@@ -3,24 +3,23 @@ import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
-// Storage directory
-const getStorageDir = () => {
+// Storage directory - call function each time to ensure env vars are loaded
+function getStorageDir() {
   const storageEnv = process.env.STORAGE_PATH;
   if (storageEnv && storageEnv.startsWith('~')) {
-    return path.join(os.homedir(), storageEnv.slice(1));
+    // Replace ~ with home directory
+    return storageEnv.replace(/^~/, os.homedir());
   }
   return storageEnv || path.join(os.homedir(), '.ai-image-decks');
-};
-
-const STORAGE_DIR = getStorageDir();
+}
 
 /**
  * Initialize storage directory
  */
 export async function initStorage() {
   try {
-    await fs.mkdir(STORAGE_DIR, { recursive: true, mode: 0o700 });
-    console.log(`Storage directory initialized: ${STORAGE_DIR}`);
+    await fs.mkdir(getStorageDir(), { recursive: true, mode: 0o700 });
+    console.log(`Storage directory initialized: ${getStorageDir()}`);
   } catch (error) {
     console.error('Failed to initialize storage directory:', error);
     throw error;
@@ -64,13 +63,13 @@ async function readJson(filePath) {
 export async function getAllDecks(includeTest = false) {
   await initStorage();
   try {
-    const entries = await fs.readdir(STORAGE_DIR, { withFileTypes: true });
+    const entries = await fs.readdir(getStorageDir(), { withFileTypes: true });
     const decks = [];
 
     for (const entry of entries) {
       if (entry.isDirectory() && entry.name.startsWith('deck-')) {
         try {
-          const deckPath = path.join(STORAGE_DIR, entry.name, 'deck.json');
+          const deckPath = path.join(getStorageDir(), entry.name, 'deck.json');
           const deck = await readJson(deckPath);
 
           // Filter out test decks unless includeTest is true
@@ -101,7 +100,7 @@ export async function getAllDecks(includeTest = false) {
  * Get deck by ID
  */
 export async function getDeck(deckId) {
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   try {
     return await readJson(deckPath);
   } catch (error) {
@@ -133,7 +132,7 @@ export async function createDeck(name, visualStyle = '', storageType = 'local', 
     isTest
   };
 
-  const deckDir = path.join(STORAGE_DIR, `deck-${deckId}`);
+  const deckDir = path.join(getStorageDir(), `deck-${deckId}`);
   const entitiesDir = path.join(deckDir, 'entities');
 
   try {
@@ -166,7 +165,7 @@ export async function updateDeck(deckId, updates) {
 
   deck.updatedAt = new Date().toISOString();
 
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   await writeJsonAtomic(deckPath, deck);
 
   return deck;
@@ -176,7 +175,7 @@ export async function updateDeck(deckId, updates) {
  * Delete deck
  */
 export async function deleteDeck(deckId) {
-  const deckDir = path.join(STORAGE_DIR, `deck-${deckId}`);
+  const deckDir = path.join(getStorageDir(), `deck-${deckId}`);
   try {
     await fs.rm(deckDir, { recursive: true, force: true });
     return true;
@@ -202,7 +201,7 @@ export async function addEntity(deckId, entityName, imageBuffer, imageExtension 
   }
 
   const imageFilename = `${entityName}.${imageExtension}`;
-  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, 'entities', imageFilename);
+  const imagePath = path.join(getStorageDir(), `deck-${deckId}`, 'entities', imageFilename);
 
   // Save image
   await fs.writeFile(imagePath, imageBuffer);
@@ -214,7 +213,7 @@ export async function addEntity(deckId, entityName, imageBuffer, imageExtension 
   };
   deck.updatedAt = new Date().toISOString();
 
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   await writeJsonAtomic(deckPath, deck);
 
   return deck;
@@ -231,7 +230,7 @@ export async function removeEntity(deckId, entityName) {
   }
 
   // Delete entity images
-  const entityDir = path.join(STORAGE_DIR, `deck-${deckId}`, 'entities');
+  const entityDir = path.join(getStorageDir(), `deck-${deckId}`, 'entities');
   for (const imageFilename of deck.entities[entityName].images) {
     try {
       await fs.unlink(path.join(entityDir, imageFilename));
@@ -244,7 +243,7 @@ export async function removeEntity(deckId, entityName) {
   delete deck.entities[entityName];
   deck.updatedAt = new Date().toISOString();
 
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   await writeJsonAtomic(deckPath, deck);
 
   return deck;
@@ -256,7 +255,7 @@ export async function removeEntity(deckId, entityName) {
  * Get global entities directory path
  */
 function getGlobalEntitiesDir() {
-  return path.join(STORAGE_DIR, 'global-entities');
+  return path.join(getStorageDir(), 'global-entities');
 }
 
 /**
@@ -404,10 +403,10 @@ export async function addThemeImage(deckId, imageBuffer, imageExtension = 'jpg')
   // Generate unique filename
   const themeImageId = uuidv4();
   const imageFilename = `theme-${themeImageId}.${imageExtension}`;
-  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+  const imagePath = path.join(getStorageDir(), `deck-${deckId}`, 'theme', imageFilename);
 
   // Ensure theme directory exists
-  const themeDir = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme');
+  const themeDir = path.join(getStorageDir(), `deck-${deckId}`, 'theme');
   await fs.mkdir(themeDir, { recursive: true });
 
   // Save image
@@ -417,7 +416,7 @@ export async function addThemeImage(deckId, imageBuffer, imageExtension = 'jpg')
   deck.themeImages.push(imageFilename);
   deck.updatedAt = new Date().toISOString();
 
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   await writeJsonAtomic(deckPath, deck);
 
   return { deck, filename: imageFilename };
@@ -434,7 +433,7 @@ export async function removeThemeImage(deckId, imageFilename) {
   }
 
   // Delete image file
-  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+  const imagePath = path.join(getStorageDir(), `deck-${deckId}`, 'theme', imageFilename);
   try {
     await fs.unlink(imagePath);
   } catch (error) {
@@ -445,7 +444,7 @@ export async function removeThemeImage(deckId, imageFilename) {
   deck.themeImages = deck.themeImages.filter(f => f !== imageFilename);
   deck.updatedAt = new Date().toISOString();
 
-  const deckPath = path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json');
+  const deckPath = path.join(getStorageDir(), `deck-${deckId}`, 'deck.json');
   await writeJsonAtomic(deckPath, deck);
 
   return deck;
@@ -455,7 +454,7 @@ export async function removeThemeImage(deckId, imageFilename) {
  * Get theme image path
  */
 export function getThemeImagePath(deckId, imageFilename) {
-  return path.join(STORAGE_DIR, `deck-${deckId}`, 'theme', imageFilename);
+  return path.join(getStorageDir(), `deck-${deckId}`, 'theme', imageFilename);
 }
 
 // ===== SLIDE OPERATIONS =====
@@ -485,7 +484,7 @@ export async function getSlides(deckId) {
  * Get slide by ID
  */
 export async function getSlide(deckId, slideId) {
-  const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
+  const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   try {
     return await readJson(slidePath);
   } catch (error) {
@@ -516,7 +515,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     generatedImages: []
   };
 
-  const slideDir = path.join(STORAGE_DIR, `deck-${deckId}`, slideId);
+  const slideDir = path.join(getStorageDir(), `deck-${deckId}`, slideId);
 
   try {
     await fs.mkdir(slideDir, { recursive: true });
@@ -525,7 +524,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     // Update deck
     deck.slides.push(slideId);
     deck.updatedAt = new Date().toISOString();
-    await writeJsonAtomic(path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json'), deck);
+    await writeJsonAtomic(path.join(getStorageDir(), `deck-${deckId}`, 'deck.json'), deck);
 
     return slide;
   } catch (error) {
@@ -552,13 +551,13 @@ export async function updateSlide(deckId, slideId, updates) {
   if (updates.overrideVisualStyle !== undefined) slide.overrideVisualStyle = updates.overrideVisualStyle;
   if (updates.noImages !== undefined) slide.noImages = updates.noImages;
 
-  const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
+  const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);
 
   // Update deck timestamp
   const deck = await getDeck(deckId);
   deck.updatedAt = new Date().toISOString();
-  await writeJsonAtomic(path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json'), deck);
+  await writeJsonAtomic(path.join(getStorageDir(), `deck-${deckId}`, 'deck.json'), deck);
 
   return slide;
 }
@@ -580,17 +579,17 @@ export async function deleteSlide(deckId, slideId) {
   for (let i = slideIndex; i < deck.slides.length; i++) {
     const slide = await getSlide(deckId, deck.slides[i]);
     slide.order = i;
-    const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, deck.slides[i], 'slide.json');
+    const slidePath = path.join(getStorageDir(), `deck-${deckId}`, deck.slides[i], 'slide.json');
     await writeJsonAtomic(slidePath, slide);
   }
 
   // Delete slide directory
-  const slideDir = path.join(STORAGE_DIR, `deck-${deckId}`, slideId);
+  const slideDir = path.join(getStorageDir(), `deck-${deckId}`, slideId);
   await fs.rm(slideDir, { recursive: true, force: true });
 
   // Update deck
   deck.updatedAt = new Date().toISOString();
-  await writeJsonAtomic(path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json'), deck);
+  await writeJsonAtomic(path.join(getStorageDir(), `deck-${deckId}`, 'deck.json'), deck);
 
   return true;
 }
@@ -615,14 +614,14 @@ export async function reorderSlides(deckId, slideIds) {
   for (let i = 0; i < slideIds.length; i++) {
     const slide = await getSlide(deckId, slideIds[i]);
     slide.order = i;
-    const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideIds[i], 'slide.json');
+    const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideIds[i], 'slide.json');
     await writeJsonAtomic(slidePath, slide);
   }
 
   // Update deck
   deck.slides = slideIds;
   deck.updatedAt = new Date().toISOString();
-  await writeJsonAtomic(path.join(STORAGE_DIR, `deck-${deckId}`, 'deck.json'), deck);
+  await writeJsonAtomic(path.join(getStorageDir(), `deck-${deckId}`, 'deck.json'), deck);
 
   return true;
 }
@@ -638,7 +637,7 @@ export async function addGeneratedImage(deckId, slideId, imageBuffer, metadata) 
   const imageId = metadata.id || uuidv4();
   const imageNum = slide.generatedImages.length + 1;
   const imageFilename = `image-${String(imageNum).padStart(3, '0')}.jpg`;
-  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, imageFilename);
+  const imagePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, imageFilename);
 
   // Save image file
   await fs.writeFile(imagePath, imageBuffer);
@@ -659,7 +658,7 @@ export async function addGeneratedImage(deckId, slideId, imageBuffer, metadata) 
 
   slide.generatedImages.push(imageMetadata);
 
-  const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
+  const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);
 
   return imageMetadata;
@@ -685,7 +684,7 @@ export async function pinImage(deckId, slideId, imageId) {
     throw new Error(`Image not found: ${imageId}`);
   }
 
-  const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
+  const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);
 
   return slide;
@@ -706,7 +705,7 @@ export async function deleteImage(deckId, slideId, imageId) {
   const wasPinned = image.isPinned;
 
   // Delete image file
-  const imagePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, image.filename);
+  const imagePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, image.filename);
   try {
     await fs.unlink(imagePath);
   } catch (error) {
@@ -721,7 +720,7 @@ export async function deleteImage(deckId, slideId, imageId) {
     slide.generatedImages[0].isPinned = true;
   }
 
-  const slidePath = path.join(STORAGE_DIR, `deck-${deckId}`, slideId, 'slide.json');
+  const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);
 
   return slide;
@@ -731,14 +730,14 @@ export async function deleteImage(deckId, slideId, imageId) {
  * Get image file path
  */
 export function getImagePath(deckId, slideId, filename) {
-  return path.join(STORAGE_DIR, `deck-${deckId}`, slideId, filename);
+  return path.join(getStorageDir(), `deck-${deckId}`, slideId, filename);
 }
 
 /**
  * Get entity image file path
  */
 export function getEntityImagePath(deckId, filename) {
-  return path.join(STORAGE_DIR, `deck-${deckId}`, 'entities', filename);
+  return path.join(getStorageDir(), `deck-${deckId}`, 'entities', filename);
 }
 
 // ===== SETTINGS OPERATIONS =====
@@ -748,7 +747,7 @@ export function getEntityImagePath(deckId, filename) {
  */
 export async function getSettings() {
   await initStorage();
-  const settingsPath = path.join(STORAGE_DIR, 'settings.json');
+  const settingsPath = path.join(getStorageDir(), 'settings.json');
 
   try {
     return await readJson(settingsPath);
@@ -772,7 +771,7 @@ export async function getSettings() {
  */
 export async function saveSettings(settings) {
   await initStorage();
-  const settingsPath = path.join(STORAGE_DIR, 'settings.json');
+  const settingsPath = path.join(getStorageDir(), 'settings.json');
 
   await writeJsonAtomic(settingsPath, settings);
 
