@@ -291,10 +291,16 @@ router.post(
     const { count, service } = req.body;
 
     const deck = await fileSystem.getDeck(deckId);
-    const slides = await fileSystem.getSlides(deckId);
+    const allSlides = await fileSystem.getSlides(deckId);
+
+    // Filter out slides marked as "no images"
+    const slides = allSlides.filter(slide => !slide.noImages);
 
     if (slides.length === 0) {
-      return res.status(400).json({ error: 'No slides in deck' });
+      return res.json({
+        message: 'All slides are marked as "no images"',
+        total: allSlides.length
+      });
     }
 
     // Create job

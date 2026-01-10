@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { extractEntityReferences } from '../utils/promptParser.js';
 
 /**
  * Generate an optimal image description using ChatGPT
@@ -21,6 +22,24 @@ export async function generateImageDescription(speakerNotes, visualStyle, entiti
 
   const openai = new OpenAI({ apiKey });
 
+  // Extract entity references from speaker notes
+  const mentionedEntityNames = extractEntityReferences(speakerNotes || '');
+
+  // Filter entities to only those mentioned in speaker notes
+  const mentionedEntities = {};
+  for (const entityName of mentionedEntityNames) {
+    // Case-insensitive match
+    const entityKey = Object.keys(entities).find(key => key.toLowerCase() === entityName.toLowerCase());
+    if (entityKey) {
+      mentionedEntities[entityKey] = entities[entityKey];
+    }
+  }
+
+  // Build entity context only for mentioned entities
+  const entityContext = Object.keys(mentionedEntities).length > 0
+    ? `\n\nEntities mentioned in speaker notes: ${Object.keys(mentionedEntities).map(e => `@${e}`).join(', ')}. Keep these entity references in your description.`
+    : '';
+
   // Build theme images context
   const themeContext = themeImages && themeImages.length > 0
     ? `\n\nNote: This deck has ${themeImages.length} theme image${themeImages.length > 1 ? 's' : ''} that set the visual tone. The generated image should match the style and mood of these reference images.`
@@ -36,13 +55,14 @@ Guidelines:
 - Consider the presentation's visual style and theme images
 - Avoid abstract concepts - focus on concrete visual elements
 - Think about what would make an engaging slide image
-- Do NOT add entity references (@EntityName) unless they are already in the speaker notes`;
+- Keep any @EntityName references that are in the speaker notes
+- Do NOT add entity references that aren't already mentioned`;
 
   const userPrompt = `Create an image description for a slide with these speaker notes:
 
 "${speakerNotes || 'No speaker notes provided'}"
 
-Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}
+Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}${entityContext}
 
 Generate a concise visual description (1-3 sentences) that captures the essence of what should be shown in the slide image:`;
 
