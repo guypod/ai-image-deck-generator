@@ -250,6 +250,140 @@ export async function removeEntity(deckId, entityName) {
   return deck;
 }
 
+// ===== GLOBAL ENTITY OPERATIONS =====
+
+/**
+ * Get global entities directory path
+ */
+function getGlobalEntitiesDir() {
+  return path.join(STORAGE_DIR, 'global-entities');
+}
+
+/**
+ * Get global entities file path
+ */
+function getGlobalEntitiesFilePath() {
+  return path.join(getGlobalEntitiesDir(), 'entities.json');
+}
+
+/**
+ * Initialize global entities storage
+ */
+async function initGlobalEntities() {
+  const dir = getGlobalEntitiesDir();
+  await fs.mkdir(dir, { recursive: true });
+
+  const filePath = getGlobalEntitiesFilePath();
+  try {
+    await fs.access(filePath);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // Create empty entities file
+      await writeJsonAtomic(filePath, {});
+    }
+  }
+}
+
+/**
+ * Get all global entities
+ */
+export async function getGlobalEntities() {
+  await initStorage();
+  await initGlobalEntities();
+
+  try {
+    return await readJson(getGlobalEntitiesFilePath());
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+}
+
+/**
+ * Add global entity
+ */
+export async function addGlobalEntity(entityName, imageBuffer, imageExtension = 'jpg') {
+  await initStorage();
+  await initGlobalEntities();
+
+  const entities = await getGlobalEntities();
+
+  // Check if entity already exists
+  if (entities[entityName]) {
+    throw new Error(`Global entity '${entityName}' already exists`);
+  }
+
+  const imageFilename = `${entityName}.${imageExtension}`;
+  const imagePath = path.join(getGlobalEntitiesDir(), imageFilename);
+
+  // Save image
+  await fs.writeFile(imagePath, imageBuffer);
+
+  // Update entities
+  entities[entityName] = {
+    name: entityName,
+    images: [imageFilename]
+  };
+
+  await writeJsonAtomic(getGlobalEntitiesFilePath(), entities);
+
+  return entities;
+}
+
+/**
+ * Remove global entity
+ */
+export async function removeGlobalEntity(entityName) {
+  await initStorage();
+  await initGlobalEntities();
+
+  const entities = await getGlobalEntities();
+
+  if (!entities[entityName]) {
+    throw new Error(`Global entity '${entityName}' not found`);
+  }
+
+  // Delete entity images
+  for (const imageFilename of entities[entityName].images) {
+    try {
+      await fs.unlink(path.join(getGlobalEntitiesDir(), imageFilename));
+    } catch (error) {
+      console.error(`Failed to delete global entity image ${imageFilename}:`, error.message);
+    }
+  }
+
+  // Update entities
+  delete entities[entityName];
+
+  await writeJsonAtomic(getGlobalEntitiesFilePath(), entities);
+
+  return entities;
+}
+
+/**
+ * Get global entity image path
+ */
+export function getGlobalEntityImagePath(filename) {
+  return path.join(getGlobalEntitiesDir(), filename);
+}
+
+/**
+ * Get merged entities (deck + global)
+ * Deck entities take precedence over global entities
+ */
+export async function getMergedEntities(deckId) {
+  const deck = await getDeck(deckId);
+  const globalEntities = await getGlobalEntities();
+
+  // Merge: deck entities override global entities
+  return {
+    ...globalEntities,
+    ...deck.entities
+  };
+}
+
 // ===== THEME IMAGE OPERATIONS =====
 
 /**
@@ -661,6 +795,11 @@ export default {
   deleteDeck,
   addEntity,
   removeEntity,
+  getGlobalEntities,
+  addGlobalEntity,
+  removeGlobalEntity,
+  getGlobalEntityImagePath,
+  getMergedEntities,
   getSlides,
   getSlide,
   createSlide,

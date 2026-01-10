@@ -27,9 +27,14 @@ All application data is stored in `~/.ai-image-decks/`:
 ```
 ~/.ai-image-decks/
 ├── settings.json                    # Global settings
+├── global-entities/                 # Global entities shared across all decks
+│   ├── entities.json                # Global entity metadata
+│   ├── person-alice.jpg             # Entity reference images
+│   ├── person-bob.jpg
+│   └── company-logo.jpg
 ├── deck-uuid-123/                   # One folder per deck
 │   ├── deck.json                    # Deck metadata
-│   ├── entities/                    # Entity reference images
+│   ├── entities/                    # Deck-specific entity reference images
 │   │   ├── office.jpg
 │   │   └── shaun1.jpg
 │   ├── slide-001/                   # One folder per slide
@@ -44,8 +49,11 @@ All application data is stored in `~/.ai-image-decks/`:
 ### Requirements
 
 - Directory must be created on first run if it doesn't exist
+- Global entities folder must be created on first run
 - Each deck gets a UUID-based folder name
 - Entity images stored separately from generated slide images
+- Global entities available to all decks; deck-specific entities only for that deck
+- Entity resolution order: check deck-specific entities first, then global entities
 - All JSON files must be valid and atomically written (write to temp, then rename)
 - Image files must be in JPEG format with 16:9 aspect ratio
 
@@ -164,6 +172,41 @@ API keys are now configured via environment variables in backend/.env:
 - `defaultService`: "openai-gpt-image", "gemini-flash", or "gemini-pro"
 - `defaultVariantCount`: Integer, 1-10
 - `googleSlides.credentials`: OAuth credentials for Google Slides export
+
+### Global Entities Model
+
+Global entities are stored in `~/.ai-image-decks/global-entities/entities.json`:
+
+```json
+{
+  "Alice": {
+    "name": "Alice",
+    "images": ["person-alice.jpg"]
+  },
+  "Bob": {
+    "name": "Bob",
+    "images": ["person-bob.jpg", "person-bob-casual.jpg"]
+  },
+  "Company-Logo": {
+    "name": "Company-Logo",
+    "images": ["company-logo.jpg"]
+  }
+}
+```
+
+**Field Requirements:**
+- Same structure as deck entities
+- Entity names: alphanumeric + hyphens only, no spaces, 1-50 characters
+- Each entity has array of image filenames
+- Images stored in `~/.ai-image-decks/global-entities/` directory
+
+**Entity Resolution:**
+When resolving @entity references:
+1. First check deck-specific entities
+2. If not found, check global entities
+3. If not found in either, mark as unknown entity
+
+This allows deck-specific entities to override global entities if needed.
 
 ## Validation Rules
 

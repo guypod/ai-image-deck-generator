@@ -78,4 +78,66 @@ router.post('/auth/google/disconnect', asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+/**
+ * GET /api/settings/global-entities
+ * Get all global entities
+ */
+router.get('/global-entities', asyncHandler(async (req, res) => {
+  const entities = await fileSystem.getGlobalEntities();
+  res.json(entities);
+}));
+
+/**
+ * POST /api/settings/global-entities
+ * Add a new global entity with image
+ */
+router.post('/global-entities', asyncHandler(async (req, res) => {
+  const { entityName, imageData } = req.body;
+
+  if (!entityName || !imageData) {
+    return res.status(400).json({
+      error: 'entityName and imageData are required'
+    });
+  }
+
+  // Validate entity name
+  const entityNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+  if (!entityNameRegex.test(entityName)) {
+    return res.status(400).json({
+      error: 'Invalid entity name. Must be alphanumeric with hyphens, no spaces.'
+    });
+  }
+
+  // Convert base64 image data to buffer
+  const imageBuffer = Buffer.from(imageData, 'base64');
+
+  const entities = await fileSystem.addGlobalEntity(entityName, imageBuffer, 'jpg');
+  res.status(201).json(entities);
+}));
+
+/**
+ * DELETE /api/settings/global-entities/:entityName
+ * Remove a global entity
+ */
+router.delete('/global-entities/:entityName', asyncHandler(async (req, res) => {
+  const { entityName } = req.params;
+  const entities = await fileSystem.removeGlobalEntity(entityName);
+  res.json(entities);
+}));
+
+/**
+ * GET /api/settings/global-entities/:entityName/:imageFilename
+ * Get global entity image file
+ */
+router.get('/global-entities/:entityName/:imageFilename', asyncHandler(async (req, res) => {
+  const { imageFilename } = req.params;
+  const imagePath = fileSystem.getGlobalEntityImagePath(imageFilename);
+
+  res.sendFile(imagePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Image file not found' });
+    }
+  });
+}));
+
 export default router;

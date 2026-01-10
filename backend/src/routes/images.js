@@ -49,6 +49,9 @@ router.post(
       });
     }
 
+    // Get merged entities (deck + global)
+    const mergedEntities = await fileSystem.getMergedEntities(deckId);
+
     // Use slide's override visual style if present, otherwise use deck's visual style
     const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
 
@@ -56,7 +59,7 @@ router.post(
     const { prompt, unknownEntities } = buildFullPrompt(
       visualStyle,
       slide.imageDescription,
-      deck.entities,
+      mergedEntities,
       deck.themeImages || []
     );
 
@@ -68,15 +71,30 @@ router.post(
     // Get referenced entity images
     const referencedEntities = getReferencedEntityImages(
       slide.imageDescription,
-      deck.entities,
+      mergedEntities,
       deckId
     );
 
     // Load entity image buffers
     const entityImageBuffers = [];
+    const globalEntities = await fileSystem.getGlobalEntities();
+
     for (const entity of referencedEntities) {
       try {
-        const imagePath = fileSystem.getEntityImagePath(deckId, entity.imageFilename);
+        let imagePath;
+
+        // Check if entity is deck-specific or global
+        if (deck.entities[entity.entityName]) {
+          // Deck-specific entity
+          imagePath = fileSystem.getEntityImagePath(deckId, entity.imageFilename);
+        } else if (globalEntities[entity.entityName]) {
+          // Global entity
+          imagePath = fileSystem.getGlobalEntityImagePath(entity.imageFilename);
+        } else {
+          console.warn(`Entity ${entity.entityName} not found in deck or global entities`);
+          continue;
+        }
+
         const buffer = await fs.readFile(imagePath);
         entityImageBuffers.push({
           buffer,
@@ -385,6 +403,9 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
     // Get settings
     const settings = await fileSystem.getSettings();
 
+    // Get merged entities once (for all slides)
+    const mergedEntities = await fileSystem.getMergedEntities(deck.id);
+
     // Generate for each slide sequentially (to respect rate limits)
     for (const slide of slides) {
       try {
@@ -395,7 +416,7 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
         const { prompt } = buildFullPrompt(
           visualStyle,
           slide.imageDescription,
-          deck.entities
+          mergedEntities
         );
 
         // Generate images
