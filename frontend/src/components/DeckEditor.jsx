@@ -21,6 +21,7 @@ import {
 import { ArrowBack, Add, Delete, Edit, ImageNotSupported } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
+import { slideAPI } from '../services/api';
 import EntityManager from './EntityManager';
 import ThemeImageManager from './ThemeImageManager';
 
@@ -28,7 +29,7 @@ export default function DeckEditor() {
   const { deckId } = useParams();
   const navigate = useNavigate();
   const { deck, loading: deckLoading, updateDeck, refresh } = useDeck(deckId);
-  const { slides, loading: slidesLoading, createSlide, deleteSlide } = useSlides(deckId);
+  const { slides, loading: slidesLoading, createSlide, updateSlide, deleteSlide } = useSlides(deckId);
   const [editingName, setEditingName] = useState(false);
   const [editingStyle, setEditingStyle] = useState(false);
   const [name, setName] = useState('');
@@ -90,6 +91,14 @@ export default function DeckEditor() {
     if (!confirm('Delete this slide?')) return;
     try {
       await deleteSlide(slideId);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleToggleNoImages = async (slideId, currentValue) => {
+    try {
+      await updateSlide(slideId, { noImages: !currentValue });
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -275,10 +284,21 @@ export default function DeckEditor() {
                     {slide.speakerNotes || 'No speaker notes'}
                   </Typography>
                   {!slide.noImages && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" display="block">
                       {slide.generatedImages.length} image(s)
                     </Typography>
                   )}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={slide.noImages || false}
+                        onChange={() => handleToggleNoImages(slide.id, slide.noImages)}
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="caption">No images</Typography>}
+                    sx={{ mt: 1 }}
+                  />
                 </CardContent>
                 <CardActions>
                   <Button
