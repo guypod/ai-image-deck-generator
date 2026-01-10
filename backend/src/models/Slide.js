@@ -77,6 +77,8 @@ export const slideSchema = Joi.object({
     .default(false),
   descriptionLocked: Joi.boolean()
     .default(false),
+  sceneStart: Joi.boolean()
+    .default(false),
   generatedImages: Joi.array()
     .items(imageMetadataSchema)
     .default([])
@@ -108,6 +110,8 @@ export const createSlideSchema = Joi.object({
   noImages: Joi.boolean()
     .default(false),
   descriptionLocked: Joi.boolean()
+    .default(false),
+  sceneStart: Joi.boolean()
     .default(false)
 });
 
@@ -133,6 +137,7 @@ export const updateSlideSchema = Joi.object({
     }),
   noImages: Joi.boolean(),
   descriptionLocked: Joi.boolean(),
+  sceneStart: Joi.boolean(),
   order: Joi.number()
     .integer()
     .min(0)

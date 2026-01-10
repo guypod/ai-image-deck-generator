@@ -59,8 +59,8 @@ router.post('/', validate(createDeckSchema), asyncHandler(async (req, res) => {
  * POST /api/decks/from-text
  * Create new deck from text block
  * Each line/bullet becomes a slide
- * Lines with bullets (* or -) default to having images
- * Lines without bullets default to text-only (no images)
+ * Lines with bullets (* or -) = content slides (with images)
+ * Lines without bullets = scene starts (no images, reset context)
  * ~name is converted to @name entity references
  */
 router.post('/from-text', validate(createDeckFromTextSchema), asyncHandler(async (req, res) => {
@@ -69,13 +69,13 @@ router.post('/from-text', validate(createDeckFromTextSchema), asyncHandler(async
   // Create the deck
   const deck = await fileSystem.createDeck(name, visualStyle || '', isTest || false);
 
-  // Parse text into slide objects (with text and noImages flag)
+  // Parse text into slide objects (with text, noImages, and sceneStart flags)
   const slideObjects = parseTextToSlides(text);
 
-  // Create slides with appropriate noImages setting
+  // Create slides with appropriate noImages and sceneStart settings
   const createdSlides = [];
   for (const slideObj of slideObjects) {
-    const slide = await fileSystem.createSlide(deck.id, slideObj.text, '', slideObj.noImages);
+    const slide = await fileSystem.createSlide(deck.id, slideObj.text, '', slideObj.noImages, slideObj.sceneStart);
     createdSlides.push(slide);
   }
 
@@ -258,9 +258,23 @@ router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) =>
     const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
 
     // Get speaker notes from previous slides for context
-    const previousSlideNotes = slides
+    // Only include slides after the most recent scene start
+    const previousSlides = slides
       .filter(s => s.order < slide.order)
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => a.order - b.order);
+
+    // Find the most recent scene start before this slide
+    let contextStartIndex = 0;
+    for (let i = previousSlides.length - 1; i >= 0; i--) {
+      if (previousSlides[i].sceneStart) {
+        contextStartIndex = i + 1; // Start from the slide after the scene start
+        break;
+      }
+    }
+
+    // Only include slides from after the most recent scene start
+    const previousSlideNotes = previousSlides
+      .slice(contextStartIndex)
       .map(s => s.speakerNotes);
 
     const description = await openaiDescriptions.generateImageDescription(

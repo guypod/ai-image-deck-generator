@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Typography, Checkbox, FormControlLabel, Chip } from '@mui/material';
-import { Delete as DeleteIcon, DragIndicator, ImageNotSupported } from '@mui/icons-material';
+import { Delete as DeleteIcon, DragIndicator, ImageNotSupported, FiberManualRecord } from '@mui/icons-material';
 
 export default function SlideThumbnail({
   slide,
@@ -209,6 +209,27 @@ export default function SlideThumbnail({
           />
         )}
       </Box>
+
+      {/* Scene Start Indicator */}
+      {slide.sceneStart && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 0.5,
+            bgcolor: 'info.50',
+            borderTop: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Chip
+            icon={<FiberManualRecord />}
+            label="Scene Start"
+            size="small"
+            color="info"
+            sx={{ fontSize: '0.65rem', height: 20 }}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

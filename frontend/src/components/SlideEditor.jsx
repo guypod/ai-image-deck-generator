@@ -54,6 +54,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [overrideVisualStyle, setOverrideVisualStyle] = useState('');
   const [noImages, setNoImages] = useState(false);
   const [descriptionLocked, setDescriptionLocked] = useState(false);
+  const [sceneStart, setSceneStart] = useState(false);
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -71,6 +72,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setOverrideVisualStyle(slide.overrideVisualStyle || '');
       setNoImages(slide.noImages || false);
       setDescriptionLocked(slide.descriptionLocked || false);
+      setSceneStart(slide.sceneStart || false);
       setUnsavedChanges(false);
     }
   }, [slide]);
@@ -82,7 +84,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         imageDescription,
         overrideVisualStyle: overrideVisualStyle || null,
         noImages,
-        descriptionLocked
+        descriptionLocked,
+        sceneStart
       });
       setUnsavedChanges(false);
     } catch (err) {
@@ -337,6 +340,10 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                     checked={noImages}
                     onChange={(e) => {
                       setNoImages(e.target.checked);
+                      // If unchecking noImages, also uncheck sceneStart
+                      if (!e.target.checked && sceneStart) {
+                        setSceneStart(false);
+                      }
                       setUnsavedChanges(true);
                     }}
                   />
@@ -345,6 +352,28 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
               />
               <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
                 Mark this slide as text-only. Image generation will be disabled.
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'info.50', borderRadius: 1, borderLeft: 3, borderColor: 'info.main' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={sceneStart}
+                    onChange={(e) => {
+                      setSceneStart(e.target.checked);
+                      // Scene starts must always have noImages=true
+                      if (e.target.checked) {
+                        setNoImages(true);
+                      }
+                      setUnsavedChanges(true);
+                    }}
+                  />
+                }
+                label="Scene Start (resets context)"
+              />
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
+                Mark this slide as a scene boundary. Description generation will only use context from slides after this point. Scene starts are always without images.
               </Typography>
             </Box>
 

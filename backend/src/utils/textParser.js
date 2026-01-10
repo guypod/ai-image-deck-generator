@@ -1,9 +1,9 @@
 /**
  * Parse text block into slides, converting ~name to @name notation
- * Lines with bullets (* or -) default to having images
- * Lines without bullets default to text-only (no images)
+ * Lines with bullets (* or -) default to having images (not scene starts)
+ * Lines without bullets are scene starts (text-only, mark scene boundaries)
  * @param {string} text - Multi-line text block
- * @returns {Array<{text: string, noImages: boolean}>} - Array of slide objects
+ * @returns {Array<{text: string, noImages: boolean, sceneStart: boolean}>} - Array of slide objects
  */
 export function parseTextToSlides(text) {
   if (!text || typeof text !== 'string') {
@@ -38,11 +38,12 @@ export function parseTextToSlides(text) {
     // Convert ~name to @name
     line = line.replace(/~([a-zA-Z0-9][a-zA-Z0-9-]*)/g, '@$1');
 
-    // If line had a bullet, it should have images (noImages = false)
-    // If line had no bullet, it should be text-only (noImages = true)
+    // Lines with bullets = content slides (have images, not scene starts)
+    // Lines without bullets = scene start slides (no images, scene boundaries)
     slides.push({
       text: line,
-      noImages: !hasBullet
+      noImages: !hasBullet,
+      sceneStart: !hasBullet
     });
   }
 

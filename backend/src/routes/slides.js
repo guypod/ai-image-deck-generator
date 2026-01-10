@@ -72,9 +72,23 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
   const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
 
   // Get speaker notes from previous slides for context
-  const previousSlideNotes = allSlides
+  // Only include slides after the most recent scene start
+  const previousSlides = allSlides
     .filter(s => s.order < slide.order)
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => a.order - b.order);
+
+  // Find the most recent scene start before this slide
+  let contextStartIndex = 0;
+  for (let i = previousSlides.length - 1; i >= 0; i--) {
+    if (previousSlides[i].sceneStart) {
+      contextStartIndex = i + 1; // Start from the slide after the scene start
+      break;
+    }
+  }
+
+  // Only include slides from after the most recent scene start
+  const previousSlideNotes = previousSlides
+    .slice(contextStartIndex)
     .map(s => s.speakerNotes);
 
   const description = await openaiDescriptions.generateImageDescription(
