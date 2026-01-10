@@ -1,7 +1,9 @@
 /**
  * Parse text block into slides, converting ~name to @name notation
+ * Lines with bullets (* or -) default to having images
+ * Lines without bullets default to text-only (no images)
  * @param {string} text - Multi-line text block
- * @returns {Array<string>} - Array of slide texts
+ * @returns {Array<{text: string, noImages: boolean}>} - Array of slide objects
  */
 export function parseTextToSlides(text) {
   if (!text || typeof text !== 'string') {
@@ -21,6 +23,9 @@ export function parseTextToSlides(text) {
       continue;
     }
 
+    // Check if line has a bullet marker (- or *)
+    const hasBullet = /^[-*]\s+/.test(line);
+
     // Remove common bullet markers (-, *, •, numbers like "1.", "1)", etc.)
     line = line.replace(/^[-*•]\s+/, ''); // Remove bullet markers
     line = line.replace(/^\d+[\.)]\s+/, ''); // Remove numbered list markers (1. or 1))
@@ -33,7 +38,12 @@ export function parseTextToSlides(text) {
     // Convert ~name to @name
     line = line.replace(/~([a-zA-Z0-9][a-zA-Z0-9-]*)/g, '@$1');
 
-    slides.push(line);
+    // If line had a bullet, it should have images (noImages = false)
+    // If line had no bullet, it should be text-only (noImages = true)
+    slides.push({
+      text: line,
+      noImages: !hasBullet
+    });
   }
 
   return slides;

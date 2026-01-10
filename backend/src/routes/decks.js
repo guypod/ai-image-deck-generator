@@ -57,6 +57,8 @@ router.post('/', validate(createDeckSchema), asyncHandler(async (req, res) => {
  * POST /api/decks/from-text
  * Create new deck from text block
  * Each line/bullet becomes a slide
+ * Lines with bullets (* or -) default to having images
+ * Lines without bullets default to text-only (no images)
  * ~name is converted to @name entity references
  */
 router.post('/from-text', validate(createDeckFromTextSchema), asyncHandler(async (req, res) => {
@@ -65,13 +67,13 @@ router.post('/from-text', validate(createDeckFromTextSchema), asyncHandler(async
   // Create the deck
   const deck = await fileSystem.createDeck(name, visualStyle || '', isTest || false);
 
-  // Parse text into slides
-  const slideTexts = parseTextToSlides(text);
+  // Parse text into slide objects (with text and noImages flag)
+  const slideObjects = parseTextToSlides(text);
 
-  // Create slides
+  // Create slides with appropriate noImages setting
   const createdSlides = [];
-  for (const slideText of slideTexts) {
-    const slide = await fileSystem.createSlide(deck.id, slideText, '');
+  for (const slideObj of slideObjects) {
+    const slide = await fileSystem.createSlide(deck.id, slideObj.text, '', slideObj.noImages);
     createdSlides.push(slide);
   }
 

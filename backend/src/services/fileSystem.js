@@ -496,7 +496,7 @@ export async function getSlide(deckId, slideId) {
 /**
  * Create new slide
  */
-export async function createSlide(deckId, speakerNotes = '', imageDescription = '') {
+export async function createSlide(deckId, speakerNotes = '', imageDescription = '', noImages = false) {
   const deck = await getDeck(deckId);
 
   // Generate slide ID
@@ -509,7 +509,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     speakerNotes,
     imageDescription,
     overrideVisualStyle: null,
-    noImages: false,
+    noImages,
     generatedImages: []
   };
 
