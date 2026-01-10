@@ -66,6 +66,8 @@ export const deckSchema = Joi.object({
     .messages({
       'any.only': 'Storage type must be either "local" or "google-drive"'
     }),
+  isTest: Joi.boolean()
+    .default(false),
   slides: Joi.array()
     .items(Joi.string())
     .default([])
@@ -94,7 +96,9 @@ export const createDeckSchema = Joi.object({
     .default('local')
     .messages({
       'any.only': 'Storage type must be either "local" or "google-drive"'
-    })
+    }),
+  isTest: Joi.boolean()
+    .default(false)
 });
 
 // Validation for deck update
@@ -116,7 +120,8 @@ export const updateDeckSchema = Joi.object({
     .valid('local', 'google-drive')
     .messages({
       'any.only': 'Storage type must be either "local" or "google-drive"'
-    })
+    }),
+  isTest: Joi.boolean()
 }).min(1); // At least one field must be present
 
 // Validation for adding entity

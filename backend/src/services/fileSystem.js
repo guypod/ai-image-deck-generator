@@ -59,8 +59,9 @@ async function readJson(filePath) {
 
 /**
  * Get all decks
+ * @param {boolean} includeTest - Whether to include test decks (default: false)
  */
-export async function getAllDecks() {
+export async function getAllDecks(includeTest = false) {
   await initStorage();
   try {
     const entries = await fs.readdir(STORAGE_DIR, { withFileTypes: true });
@@ -71,6 +72,12 @@ export async function getAllDecks() {
         try {
           const deckPath = path.join(STORAGE_DIR, entry.name, 'deck.json');
           const deck = await readJson(deckPath);
+
+          // Filter out test decks unless includeTest is true
+          if (!includeTest && deck.isTest) {
+            continue;
+          }
+
           decks.push(deck);
         } catch (error) {
           console.error(`Failed to read deck ${entry.name}:`, error.message);
@@ -108,7 +115,7 @@ export async function getDeck(deckId) {
 /**
  * Create new deck
  */
-export async function createDeck(name, visualStyle = '', storageType = 'local') {
+export async function createDeck(name, visualStyle = '', storageType = 'local', isTest = false) {
   await initStorage();
 
   const deckId = uuidv4();
@@ -122,7 +129,8 @@ export async function createDeck(name, visualStyle = '', storageType = 'local') 
     visualStyle,
     entities: {},
     slides: [],
-    storageType
+    storageType,
+    isTest
   };
 
   const deckDir = path.join(STORAGE_DIR, `deck-${deckId}`);
@@ -154,6 +162,7 @@ export async function updateDeck(deckId, updates) {
   if (updates.name !== undefined) deck.name = updates.name;
   if (updates.visualStyle !== undefined) deck.visualStyle = updates.visualStyle;
   if (updates.storageType !== undefined) deck.storageType = updates.storageType;
+  if (updates.isTest !== undefined) deck.isTest = updates.isTest;
 
   deck.updatedAt = new Date().toISOString();
 

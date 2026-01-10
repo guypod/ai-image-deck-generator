@@ -87,7 +87,27 @@ router.post(
       }
     }
 
-    console.log(`Generating images with ${entityImageBuffers.length} entity reference(s)`);
+    // Load theme image buffers
+    const themeImageBuffers = [];
+    if (deck.themeImages && deck.themeImages.length > 0) {
+      for (const themeImageFilename of deck.themeImages) {
+        try {
+          const imagePath = fileSystem.getThemeImagePath(deckId, themeImageFilename);
+          const buffer = await fs.readFile(imagePath);
+          themeImageBuffers.push({
+            buffer,
+            label: 'Theme Reference'
+          });
+        } catch (error) {
+          console.warn(`Failed to load theme image ${themeImageFilename}:`, error.message);
+        }
+      }
+    }
+
+    // Combine entity and theme images
+    const allReferenceImages = [...entityImageBuffers, ...themeImageBuffers];
+
+    console.log(`Generating images with ${entityImageBuffers.length} entity reference(s) and ${themeImageBuffers.length} theme image(s)`);
 
     // Generate images in parallel
     const tasks = Array.from({ length: count }, () => async () => {
@@ -111,7 +131,7 @@ router.post(
           model: geminiNanoBanana.MODELS.FLASH,
           aspectRatio: '16:9',
           resolution: '2K',
-          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
+          referenceImages: allReferenceImages.length > 0 ? allReferenceImages : null
         });
       } else if (service === 'gemini-pro') {
         if (!process.env.GEMINI_API_KEY) {
@@ -122,7 +142,7 @@ router.post(
           model: geminiNanoBanana.MODELS.PRO,
           aspectRatio: '16:9',
           resolution: '2K',
-          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
+          referenceImages: allReferenceImages.length > 0 ? allReferenceImages : null
         });
       } else {
         throw new Error(`Unknown service: ${service}`);

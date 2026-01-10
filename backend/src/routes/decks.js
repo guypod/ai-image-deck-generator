@@ -25,9 +25,11 @@ const upload = multer({
 /**
  * GET /api/decks
  * List all decks
+ * Query params: includeTest=true to include test decks
  */
 router.get('/', asyncHandler(async (req, res) => {
-  const decks = await fileSystem.getAllDecks();
+  const includeTest = req.query.includeTest === 'true';
+  const decks = await fileSystem.getAllDecks(includeTest);
   res.json(decks);
 }));
 
@@ -45,8 +47,8 @@ router.get('/:deckId', asyncHandler(async (req, res) => {
  * Create new deck
  */
 router.post('/', validate(createDeckSchema), asyncHandler(async (req, res) => {
-  const { name, visualStyle, storageType } = req.body;
-  const deck = await fileSystem.createDeck(name, visualStyle, storageType);
+  const { name, visualStyle, storageType, isTest } = req.body;
+  const deck = await fileSystem.createDeck(name, visualStyle, storageType, isTest);
   res.status(201).json(deck);
 }));
 

@@ -18,6 +18,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { ArrowBack, Add, Delete, Edit } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
@@ -35,12 +37,14 @@ export default function DeckEditor() {
   const [name, setName] = useState('');
   const [visualStyle, setVisualStyle] = useState('');
   const [storageType, setStorageType] = useState('local');
+  const [isTest, setIsTest] = useState(false);
 
   React.useEffect(() => {
     if (deck) {
       setName(deck.name);
       setVisualStyle(deck.visualStyle);
       setStorageType(deck.storageType || 'local');
+      setIsTest(deck.isTest || false);
     }
   }, [deck]);
 
@@ -70,6 +74,15 @@ export default function DeckEditor() {
     try {
       await updateDeck({ storageType: newStorageType });
       setStorageType(newStorageType);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleIsTestChange = async (newIsTest) => {
+    try {
+      await updateDeck({ isTest: newIsTest });
+      setIsTest(newIsTest);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -207,6 +220,21 @@ export default function DeckEditor() {
             {storageType === 'google-drive'
               ? 'Deck will be stored in a folder at the root of your Google Drive'
               : 'Deck is stored locally on your computer'}
+          </Typography>
+        </Box>
+
+        <Box mb={3}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={isTest}
+                onChange={(e) => handleIsTestChange(e.target.checked)}
+              />
+            }
+            label="Mark as test deck (hidden from deck list by default)"
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 4 }}>
+            Test decks are hidden from the main deck list to keep it clean
           </Typography>
         </Box>
 
