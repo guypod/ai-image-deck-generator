@@ -133,10 +133,40 @@ export const entityNameSchema = Joi.string()
     'any.required': 'Entity name is required'
   });
 
+// Validation for creating deck from text
+export const createDeckFromTextSchema = Joi.object({
+  name: Joi.string()
+    .min(1)
+    .max(200)
+    .required()
+    .messages({
+      'string.min': 'Deck name must be at least 1 character',
+      'string.max': 'Deck name must not exceed 200 characters',
+      'any.required': 'Deck name is required'
+    }),
+  text: Joi.string()
+    .min(1)
+    .required()
+    .messages({
+      'string.min': 'Text content is required',
+      'any.required': 'Text content is required'
+    }),
+  visualStyle: Joi.string()
+    .max(1000)
+    .allow('')
+    .default('')
+    .messages({
+      'string.max': 'Visual style must not exceed 1000 characters'
+    }),
+  isTest: Joi.boolean()
+    .default(false)
+});
+
 export default {
   deckSchema,
   createDeckSchema,
   updateDeckSchema,
   addEntitySchema,
-  entityNameSchema
+  entityNameSchema,
+  createDeckFromTextSchema
 };

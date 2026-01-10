@@ -17,16 +17,22 @@ import {
   TextField,
   CircularProgress,
   Alert,
+  Menu,
+  MenuItem,
 } from '@mui/material';
-import { Add, Delete, Edit } from '@mui/icons-material';
+import { Add, Delete, Edit, ArrowDropDown } from '@mui/icons-material';
 import { useDecks } from '../hooks/useDecks';
+import { deckAPI } from '../services/api';
 
 export default function DeckList() {
   const navigate = useNavigate();
-  const { decks, loading, error, createDeck, deleteDeck } = useDecks();
+  const { decks, loading, error, createDeck, deleteDeck, refresh } = useDecks();
   const [openDialog, setOpenDialog] = useState(false);
+  const [openTextDialog, setOpenTextDialog] = useState(false);
   const [deckName, setDeckName] = useState('');
+  const [textContent, setTextContent] = useState('');
   const [creating, setCreating] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
 
   const handleCreate = async () => {
     if (!deckName.trim()) return;
@@ -39,6 +45,28 @@ export default function DeckList() {
       navigate(`/decks/${newDeck.id}/edit`);
     } catch (err) {
       alert(`Error creating deck: ${err.message}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCreateFromText = async () => {
+    if (!deckName.trim() || !textContent.trim()) return;
+
+    setCreating(true);
+    try {
+      const response = await deckAPI.createFromText({
+        name: deckName,
+        text: textContent,
+        visualStyle: ''
+      });
+      setOpenTextDialog(false);
+      setDeckName('');
+      setTextContent('');
+      await refresh();
+      navigate(`/decks/${response.data.deck.id}/edit`);
+    } catch (err) {
+      alert(`Error creating deck from text: ${err.message}`);
     } finally {
       setCreating(false);
     }
@@ -68,13 +96,28 @@ export default function DeckList() {
         <Typography variant="h4" component="h1">
           My Slide Decks
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenDialog(true)}
-        >
-          New Deck
-        </Button>
+        <Box>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            endIcon={<ArrowDropDown />}
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+          >
+            New Deck
+          </Button>
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+          >
+            <MenuItem onClick={() => { setMenuAnchor(null); setOpenDialog(true); }}>
+              Empty Deck
+            </MenuItem>
+            <MenuItem onClick={() => { setMenuAnchor(null); setOpenTextDialog(true); }}>
+              From Text
+            </MenuItem>
+          </Menu>
+        </Box>
       </Box>
 
       {error && (
@@ -162,6 +205,52 @@ export default function DeckList() {
             disabled={!deckName.trim() || creating}
           >
             {creating ? 'Creating...' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Deck from Text Dialog */}
+      <Dialog
+        open={openTextDialog}
+        onClose={() => !creating && setOpenTextDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Create Deck from Text</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Deck Name"
+            fullWidth
+            value={deckName}
+            onChange={(e) => setDeckName(e.target.value)}
+            disabled={creating}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Paste your text here"
+            fullWidth
+            multiline
+            rows={10}
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            disabled={creating}
+            placeholder="Each line or bullet will become a slide.&#10;Empty lines are ignored.&#10;Use ~name to reference entities (will become @name)"
+            helperText="Each line or bullet becomes a slide. Use ~name for entities (converts to @name)"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenTextDialog(false)} disabled={creating}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateFromText}
+            variant="contained"
+            disabled={!deckName.trim() || !textContent.trim() || creating}
+          >
+            {creating ? 'Creating...' : 'Create Deck'}
           </Button>
         </DialogActions>
       </Dialog>

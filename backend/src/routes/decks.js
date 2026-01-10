@@ -2,8 +2,9 @@ import express from 'express';
 import multer from 'multer';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
-import { createDeckSchema, updateDeckSchema, addEntitySchema, entityNameSchema } from '../models/Deck.js';
+import { createDeckSchema, updateDeckSchema, addEntitySchema, entityNameSchema, createDeckFromTextSchema } from '../models/Deck.js';
 import * as fileSystem from '../services/fileSystem.js';
+import { parseTextToSlides } from '../utils/textParser.js';
 
 const router = express.Router();
 
@@ -50,6 +51,37 @@ router.post('/', validate(createDeckSchema), asyncHandler(async (req, res) => {
   const { name, visualStyle, isTest } = req.body;
   const deck = await fileSystem.createDeck(name, visualStyle, isTest);
   res.status(201).json(deck);
+}));
+
+/**
+ * POST /api/decks/from-text
+ * Create new deck from text block
+ * Each line/bullet becomes a slide
+ * ~name is converted to @name entity references
+ */
+router.post('/from-text', validate(createDeckFromTextSchema), asyncHandler(async (req, res) => {
+  const { name, text, visualStyle, isTest } = req.body;
+
+  // Create the deck
+  const deck = await fileSystem.createDeck(name, visualStyle || '', isTest || false);
+
+  // Parse text into slides
+  const slideTexts = parseTextToSlides(text);
+
+  // Create slides
+  const createdSlides = [];
+  for (const slideText of slideTexts) {
+    const slide = await fileSystem.createSlide(deck.id, slideText, '');
+    createdSlides.push(slide);
+  }
+
+  // Get updated deck with slides
+  const updatedDeck = await fileSystem.getDeck(deck.id);
+
+  res.status(201).json({
+    deck: updatedDeck,
+    slidesCreated: createdSlides.length
+  });
 }));
 
 /**

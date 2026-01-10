@@ -24,6 +24,7 @@ export const deckAPI = {
   getAll: () => api.get('/decks'),
   getById: (id) => api.get(`/decks/${id}`),
   create: (data) => api.post('/decks', data),
+  createFromText: (data) => api.post('/decks/from-text', data),
   update: (id, data) => api.put(`/decks/${id}`, data),
   delete: (id) => api.delete(`/decks/${id}`),
   addEntity: (deckId, formData) =>
