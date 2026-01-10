@@ -19,6 +19,12 @@ export default function SlideThumbnail({
     onDelete(slide.id);
   };
 
+  const handleToggleNoImages = (e) => {
+    e.stopPropagation(); // Prevent slide selection
+    e.preventDefault(); // Prevent default checkbox behavior
+    onToggleNoImages?.(slide.id, slide.noImages);
+  };
+
   // Get thumbnail image URL
   const getThumbnailUrl = () => {
     if (!slide.generatedImages || slide.generatedImages.length === 0) {
@@ -181,20 +187,17 @@ export default function SlideThumbnail({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <FormControlLabel
           control={
             <Checkbox
               checked={slide.noImages || false}
-              onChange={(e) => {
-                e.stopPropagation();
-                onToggleNoImages?.(slide.id, slide.noImages);
-              }}
+              onClick={handleToggleNoImages}
               size="small"
             />
           }
           label={<Typography variant="caption">No images</Typography>}
-          onClick={(e) => e.stopPropagation()}
         />
         {slide.noImages && (
           <Chip

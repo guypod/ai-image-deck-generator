@@ -17,6 +17,7 @@ import {
 import { ArrowBack, Settings as SettingsIcon } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
+import { slideAPI } from '../services/api';
 import SlidePanel from './SlidePanel';
 import SlideEditor from './SlideEditor';
 
@@ -26,11 +27,17 @@ export default function SlideDeckView() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { deck, loading: deckLoading, error: deckError } = useDeck(deckId);
-  const { slides, loading: slidesLoading, createSlide, updateSlide, deleteSlide, reorderSlides, refresh: refreshSlides } = useSlides(deckId);
+  const { slides: slidesFromHook, loading: slidesLoading, createSlide, updateSlide, deleteSlide, reorderSlides, refresh: refreshSlides } = useSlides(deckId);
 
+  const [slides, setSlides] = useState([]);
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [slideToDelete, setSlideToDelete] = useState(null);
+
+  // Sync local slides with hook slides
+  useEffect(() => {
+    setSlides(slidesFromHook);
+  }, [slidesFromHook]);
 
   // Auto-select first slide or slide from URL
   useEffect(() => {
@@ -124,11 +131,29 @@ export default function SlideDeckView() {
     }
   };
 
-  // Toggle no images for a slide
+  // Toggle no images for a slide (inline update without full refresh)
   const handleToggleNoImages = async (slideId, currentValue) => {
+    // Optimistically update local state immediately for smooth UX
+    setSlides(prevSlides =>
+      prevSlides.map(slide =>
+        slide.id === slideId
+          ? { ...slide, noImages: !currentValue }
+          : slide
+      )
+    );
+
     try {
-      await updateSlide(slideId, { noImages: !currentValue });
+      // Update via API in background
+      await slideAPI.update(deckId, slideId, { noImages: !currentValue });
     } catch (error) {
+      // Revert on error
+      setSlides(prevSlides =>
+        prevSlides.map(slide =>
+          slide.id === slideId
+            ? { ...slide, noImages: currentValue }
+            : slide
+        )
+      );
       alert(`Error updating slide: ${error.message}`);
     }
   };
