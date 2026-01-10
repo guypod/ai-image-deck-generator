@@ -5,6 +5,7 @@ import { validate } from '../middleware/validation.js';
 import { createDeckSchema, updateDeckSchema, addEntitySchema, entityNameSchema, createDeckFromTextSchema } from '../models/Deck.js';
 import * as fileSystem from '../services/fileSystem.js';
 import { parseTextToSlides } from '../utils/textParser.js';
+import * as openaiDescriptions from '../services/openaiDescriptions.js';
 
 const router = express.Router();
 
@@ -217,6 +218,82 @@ router.get('/:deckId/theme-images/:filename', asyncHandler(async (req, res) => {
     if (err) {
       res.status(404).json({ error: 'Image not found' });
     }
+  });
+}));
+
+/**
+ * POST /api/decks/:deckId/regenerate-descriptions
+ * Regenerate image descriptions for all unlocked slides
+ */
+router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) => {
+  const { deckId } = req.params;
+
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(400).json({
+      error: 'OPENAI_API_KEY not configured in environment. Please add it to your .env file.'
+    });
+  }
+
+  const deck = await fileSystem.getDeck(deckId);
+  const slides = await fileSystem.getSlides(deckId);
+
+  // Filter out locked slides
+  const unlockedSlides = slides.filter(slide => !slide.descriptionLocked);
+
+  if (unlockedSlides.length === 0) {
+    return res.json({
+      message: 'All slides have locked descriptions',
+      regenerated: 0,
+      skipped: slides.length
+    });
+  }
+
+  // Get merged entities
+  const mergedEntities = await fileSystem.getMergedEntities(deckId);
+
+  const results = [];
+  let regenerated = 0;
+  let failed = 0;
+
+  for (const slide of unlockedSlides) {
+    try {
+      // Use slide's override visual style if present, otherwise use deck's visual style
+      const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
+
+      const description = await openaiDescriptions.generateImageDescription(
+        slide.speakerNotes,
+        visualStyle,
+        mergedEntities,
+        deck.themeImages || [],
+        process.env.OPENAI_API_KEY
+      );
+
+      // Update the slide
+      await fileSystem.updateSlide(deckId, slide.id, { imageDescription: description });
+
+      results.push({
+        slideId: slide.id,
+        status: 'success',
+        description
+      });
+
+      regenerated++;
+    } catch (error) {
+      results.push({
+        slideId: slide.id,
+        status: 'failed',
+        error: error.message
+      });
+      failed++;
+    }
+  }
+
+  res.json({
+    message: `Regenerated ${regenerated} description(s)`,
+    regenerated,
+    failed,
+    skipped: slides.length - unlockedSlides.length,
+    results
   });
 }));
 

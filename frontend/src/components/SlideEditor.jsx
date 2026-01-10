@@ -27,7 +27,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon } from '@mui/icons-material';
+import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
 import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
@@ -53,6 +53,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [imageDescription, setImageDescription] = useState('');
   const [overrideVisualStyle, setOverrideVisualStyle] = useState('');
   const [noImages, setNoImages] = useState(false);
+  const [descriptionLocked, setDescriptionLocked] = useState(false);
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -69,6 +70,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setImageDescription(slide.imageDescription);
       setOverrideVisualStyle(slide.overrideVisualStyle || '');
       setNoImages(slide.noImages || false);
+      setDescriptionLocked(slide.descriptionLocked || false);
       setUnsavedChanges(false);
     }
   }, [slide]);
@@ -79,12 +81,18 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         speakerNotes,
         imageDescription,
         overrideVisualStyle: overrideVisualStyle || null,
-        noImages
+        noImages,
+        descriptionLocked
       });
       setUnsavedChanges(false);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
+  };
+
+  const handleToggleLock = () => {
+    setDescriptionLocked(!descriptionLocked);
+    setUnsavedChanges(true);
   };
 
   const handleGenerateDescription = async () => {
@@ -269,9 +277,24 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
             />
 
             <Box sx={{ mb: 3 }}>
+              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Image Description
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={handleToggleLock}
+                  title={descriptionLocked ? 'Unlock description (allow auto-regeneration)' : 'Lock description (prevent auto-regeneration)'}
+                  color={descriptionLocked ? 'warning' : 'default'}
+                >
+                  {descriptionLocked ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
+                </IconButton>
+                {descriptionLocked && (
+                  <Chip label="Locked" size="small" color="warning" />
+                )}
+              </Box>
               <TextField
                 fullWidth
-                label="Image Description"
                 multiline
                 rows={4}
                 value={imageDescription}

@@ -75,6 +75,8 @@ export const slideSchema = Joi.object({
     }),
   noImages: Joi.boolean()
     .default(false),
+  descriptionLocked: Joi.boolean()
+    .default(false),
   generatedImages: Joi.array()
     .items(imageMetadataSchema)
     .default([])
@@ -104,6 +106,8 @@ export const createSlideSchema = Joi.object({
       'string.max': 'Override visual style must not exceed 1000 characters'
     }),
   noImages: Joi.boolean()
+    .default(false),
+  descriptionLocked: Joi.boolean()
     .default(false)
 });
 
@@ -128,6 +132,7 @@ export const updateSlideSchema = Joi.object({
       'string.max': 'Override visual style must not exceed 1000 characters'
     }),
   noImages: Joi.boolean(),
+  descriptionLocked: Joi.boolean(),
   order: Joi.number()
     .integer()
     .min(0)

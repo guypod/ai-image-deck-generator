@@ -21,12 +21,6 @@ export async function generateImageDescription(speakerNotes, visualStyle, entiti
 
   const openai = new OpenAI({ apiKey });
 
-  // Build entity context
-  const entityNames = Object.keys(entities);
-  const entityContext = entityNames.length > 0
-    ? `\n\nAvailable named entities (use @EntityName to reference them): ${entityNames.map(e => `@${e}`).join(', ')}`
-    : '';
-
   // Build theme images context
   const themeContext = themeImages && themeImages.length > 0
     ? `\n\nNote: This deck has ${themeImages.length} theme image${themeImages.length > 1 ? 's' : ''} that set the visual tone. The generated image should match the style and mood of these reference images.`
@@ -40,15 +34,15 @@ Guidelines:
 - Focus on visual elements, composition, and mood
 - Be specific but concise (1-3 sentences)
 - Consider the presentation's visual style and theme images
-- If named entities are available, use @EntityName syntax to reference them
 - Avoid abstract concepts - focus on concrete visual elements
-- Think about what would make an engaging slide image`;
+- Think about what would make an engaging slide image
+- Do NOT add entity references (@EntityName) unless they are already in the speaker notes`;
 
   const userPrompt = `Create an image description for a slide with these speaker notes:
 
 "${speakerNotes || 'No speaker notes provided'}"
 
-Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}${entityContext}
+Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}
 
 Generate a concise visual description (1-3 sentences) that captures the essence of what should be shown in the slide image:`;
 

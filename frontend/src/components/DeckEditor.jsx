@@ -18,7 +18,7 @@ import {
   FormControlLabel,
   Chip,
 } from '@mui/material';
-import { ArrowBack, Add, Delete, Edit, ImageNotSupported } from '@mui/icons-material';
+import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
 import { slideAPI } from '../services/api';
@@ -35,6 +35,8 @@ export default function DeckEditor() {
   const [name, setName] = useState('');
   const [visualStyle, setVisualStyle] = useState('');
   const [isTest, setIsTest] = useState(false);
+  const [regeneratingDescriptions, setRegeneratingDescriptions] = useState(false);
+  const [generatingImages, setGeneratingImages] = useState(false);
 
   React.useEffect(() => {
     if (deck) {
@@ -104,6 +106,68 @@ export default function DeckEditor() {
     }
   };
 
+  const handleRegenerateDescriptions = async () => {
+    if (!confirm('Regenerate all unlocked slide descriptions? This will overwrite existing descriptions that are not locked.')) {
+      return;
+    }
+
+    setRegeneratingDescriptions(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/decks/${deckId}/regenerate-descriptions`,
+        { method: 'POST' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to regenerate descriptions');
+      }
+
+      const data = await response.json();
+      alert(`Successfully regenerated ${data.regenerated} description(s). ${data.skipped} locked, ${data.failed} failed.`);
+
+      // Refresh slides to show new descriptions
+      window.location.reload();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setRegeneratingDescriptions(false);
+    }
+  };
+
+  const handleGenerateAllImages = async () => {
+    if (!confirm('Generate images for all slides (excluding "no images" slides)? This may take several minutes.')) {
+      return;
+    }
+
+    setGeneratingImages(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/decks/${deckId}/generate-all`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: 2, service: 'gemini-pro' })
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start image generation');
+      }
+
+      const data = await response.json();
+      alert(`Image generation started! Job ID: ${data.jobId}. This will take several minutes.`);
+
+      // Optionally navigate to slide view to see progress
+      // navigate(`/decks/${deckId}/slides`);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setGeneratingImages(false);
+    }
+  };
+
   if (deckLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
@@ -122,13 +186,21 @@ export default function DeckEditor() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button
-        startIcon={<ArrowBack />}
-        onClick={() => navigate('/')}
-        sx={{ mb: 3 }}
-      >
-        Back to Decks
-      </Button>
+      <Box display="flex" alignItems="center" gap={2} mb={3}>
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => navigate('/')}
+        >
+          All Decks
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<Close />}
+          onClick={() => navigate(`/decks/${deckId}/slides`)}
+        >
+          Close Settings
+        </Button>
+      </Box>
 
       <Paper sx={{ p: 3, mb: 4 }}>
         <Box display="flex" alignItems="center" gap={2} mb={3}>
@@ -228,6 +300,33 @@ export default function DeckEditor() {
           entities={deck.entities || {}}
           onUpdate={handleEntityUpdate}
         />
+
+        <Box sx={{ my: 3, borderBottom: 1, borderColor: 'divider' }} />
+
+        <Typography variant="h6" gutterBottom>
+          Bulk Operations
+        </Typography>
+        <Box display="flex" gap={2} flexWrap="wrap">
+          <Button
+            variant="outlined"
+            onClick={handleRegenerateDescriptions}
+            disabled={regeneratingDescriptions}
+            startIcon={regeneratingDescriptions ? <CircularProgress size={20} /> : null}
+          >
+            {regeneratingDescriptions ? 'Regenerating...' : 'Regenerate All Descriptions'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleGenerateAllImages}
+            disabled={generatingImages}
+            startIcon={generatingImages ? <CircularProgress size={20} /> : null}
+          >
+            {generatingImages ? 'Generating...' : 'Generate All Images'}
+          </Button>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          Regenerate descriptions skips locked descriptions. Generate images skips "no images" slides.
+        </Typography>
       </Paper>
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>

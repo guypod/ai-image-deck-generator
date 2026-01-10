@@ -510,6 +510,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     imageDescription,
     overrideVisualStyle: null,
     noImages,
+    descriptionLocked: false,
     generatedImages: []
   };
 
