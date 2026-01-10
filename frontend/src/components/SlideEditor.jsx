@@ -53,6 +53,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [lastUsedPrompt, setLastUsedPrompt] = useState('');
 
   useEffect(() => {
     if (slide) {
@@ -123,7 +124,11 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     }
 
     try {
-      await generateImages(variantCount, service);
+      const result = await generateImages(variantCount, service);
+      // Store the prompt that was used
+      if (result.prompt) {
+        setLastUsedPrompt(result.prompt);
+      }
       await refresh();
       if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
@@ -278,6 +283,21 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
               label="No Images (placeholder slide for export)"
               sx={{ mb: 2 }}
             />
+
+            {lastUsedPrompt && (
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Last Used Prompt"
+                value={lastUsedPrompt}
+                InputProps={{
+                  readOnly: true,
+                }}
+                helperText="This is the actual prompt that was sent to the AI"
+                sx={{ mb: 2, bgcolor: 'grey.50' }}
+              />
+            )}
 
             {unsavedChanges && (
               <Alert severity="info" sx={{ mb: 2 }}>

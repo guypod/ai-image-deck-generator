@@ -170,7 +170,8 @@ router.post(
     res.json({
       images: successful,
       failed: failed.length > 0 ? failed.map(r => r.error) : undefined,
-      unknownEntities: unknownEntities.length > 0 ? unknownEntities : undefined
+      unknownEntities: unknownEntities.length > 0 ? unknownEntities : undefined,
+      prompt: prompt // Return the prompt that was used
     });
   })
 );
