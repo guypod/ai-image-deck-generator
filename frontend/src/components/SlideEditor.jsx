@@ -270,19 +270,23 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
               sx={{ mb: 2 }}
             />
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={noImages}
-                  onChange={(e) => {
-                    setNoImages(e.target.checked);
-                    setUnsavedChanges(true);
-                  }}
-                />
-              }
-              label="No Images (placeholder slide for export)"
-              sx={{ mb: 2 }}
-            />
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={noImages}
+                    onChange={(e) => {
+                      setNoImages(e.target.checked);
+                      setUnsavedChanges(true);
+                    }}
+                  />
+                }
+                label="No Images (text-only slide)"
+              />
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
+                Mark this slide as text-only. Image generation will be disabled.
+              </Typography>
+            </Box>
 
             {lastUsedPrompt && (
               <TextField

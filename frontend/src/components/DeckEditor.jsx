@@ -16,8 +16,9 @@ import {
   Alert,
   Checkbox,
   FormControlLabel,
+  Chip,
 } from '@mui/material';
-import { ArrowBack, Add, Delete, Edit } from '@mui/icons-material';
+import { ArrowBack, Add, Delete, Edit, ImageNotSupported } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
 import EntityManager from './EntityManager';
@@ -256,15 +257,28 @@ export default function DeckEditor() {
             <Grid item xs={12} sm={6} md={4} key={slide.id}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Slide {index + 1}
-                  </Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Typography variant="h6">
+                      Slide {index + 1}
+                    </Typography>
+                    {slide.noImages && (
+                      <Chip
+                        icon={<ImageNotSupported />}
+                        label="No Images"
+                        size="small"
+                        color="default"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
                   <Typography variant="body2" color="text.secondary" noWrap>
                     {slide.speakerNotes || 'No speaker notes'}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {slide.generatedImages.length} image(s)
-                  </Typography>
+                  {!slide.noImages && (
+                    <Typography variant="caption" color="text.secondary">
+                      {slide.generatedImages.length} image(s)
+                    </Typography>
+                  )}
                 </CardContent>
                 <CardActions>
                   <Button
