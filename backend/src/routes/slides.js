@@ -63,6 +63,7 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
 
   const deck = await fileSystem.getDeck(deckId);
   const slide = await fileSystem.getSlide(deckId, slideId);
+  const allSlides = await fileSystem.getSlides(deckId);
 
   // Get merged entities (deck + global)
   const mergedEntities = await fileSystem.getMergedEntities(deckId);
@@ -70,12 +71,19 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
   // Use slide's override visual style if present, otherwise use deck's visual style
   const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
 
+  // Get speaker notes from previous slides for context
+  const previousSlideNotes = allSlides
+    .filter(s => s.order < slide.order)
+    .sort((a, b) => a.order - b.order)
+    .map(s => s.speakerNotes);
+
   const description = await openaiDescriptions.generateImageDescription(
     slide.speakerNotes,
     visualStyle,
     mergedEntities,
     deck.themeImages || [],
-    process.env.OPENAI_API_KEY
+    process.env.OPENAI_API_KEY,
+    previousSlideNotes
   );
 
   res.json({ description });

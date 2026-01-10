@@ -13,9 +13,10 @@ import { extractEntityReferences } from '../utils/promptParser.js';
  * @param {object} entities - Available entities from the deck
  * @param {array} themeImages - Array of theme image filenames
  * @param {string} apiKey - OpenAI API key
+ * @param {array} previousSlideNotes - Speaker notes from previous slides for context
  * @returns {Promise<string>} - Generated image description
  */
-export async function generateImageDescription(speakerNotes, visualStyle, entities = {}, themeImages = [], apiKey) {
+export async function generateImageDescription(speakerNotes, visualStyle, entities = {}, themeImages = [], apiKey, previousSlideNotes = []) {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
   }
@@ -45,6 +46,15 @@ export async function generateImageDescription(speakerNotes, visualStyle, entiti
     ? `\n\nNote: This deck has ${themeImages.length} theme image${themeImages.length > 1 ? 's' : ''} that set the visual tone. The generated image should match the style and mood of these reference images.`
     : '';
 
+  // Build context from previous slides
+  let previousContext = '';
+  if (previousSlideNotes && previousSlideNotes.length > 0) {
+    const previousText = previousSlideNotes
+      .map((notes, idx) => `Slide ${idx + 1}: ${notes}`)
+      .join('\n');
+    previousContext = `\n\nPrevious slides for context:\n${previousText}\n`;
+  }
+
   // Build the prompt for ChatGPT
   const systemPrompt = `You are an expert at creating visual descriptions for presentation slides.
 Your task is to generate a concise, visually-focused image description that will be used to generate an AI image for a slide.
@@ -53,14 +63,15 @@ Guidelines:
 - Focus on visual elements, composition, and mood
 - Be specific but concise (1-3 sentences)
 - Consider the presentation's visual style and theme images
+- Consider the narrative flow from previous slides
 - Avoid abstract concepts - focus on concrete visual elements
 - Think about what would make an engaging slide image
 - Keep any @EntityName references that are in the speaker notes
 - Do NOT add entity references that aren't already mentioned`;
 
-  const userPrompt = `Create an image description for a slide with these speaker notes:
+  const userPrompt = `Create an image description for a slide with these speaker notes:${previousContext}
 
-"${speakerNotes || 'No speaker notes provided'}"
+Current slide: "${speakerNotes || 'No speaker notes provided'}"
 
 Visual style for the deck: ${visualStyle || 'Professional presentation style'}${themeContext}${entityContext}
 
