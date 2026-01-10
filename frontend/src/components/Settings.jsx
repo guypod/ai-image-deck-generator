@@ -12,9 +12,11 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
+  Divider,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useSettings } from '../hooks/useSettings';
+import GlobalEntityManager from './GlobalEntityManager';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -132,6 +134,17 @@ export default function Settings() {
         >
           {saving ? 'Saving...' : 'Save Settings'}
         </Button>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Global Entities
+        </Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          Global entities are available across all decks. Reference them in any slide using @EntityName.
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+        <GlobalEntityManager />
       </Paper>
 
       <Paper sx={{ p: 3 }}>

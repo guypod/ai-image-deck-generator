@@ -75,6 +75,15 @@ export const settingsAPI = {
   testApiKey: (data) => api.post('/settings/test-api-key', data),
 };
 
+// Global Entities API
+export const globalEntitiesAPI = {
+  getAll: () => api.get('/settings/global-entities'),
+  add: (data) => api.post('/settings/global-entities', data),
+  remove: (entityName) => api.delete(`/settings/global-entities/${entityName}`),
+  getImage: (entityName, filename) =>
+    `${API_BASE_URL}/settings/global-entities/${entityName}/${filename}`,
+};
+
 // Export API
 export const exportAPI = {
   toGoogleSlides: (deckId, data) =>
