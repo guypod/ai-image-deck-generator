@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
-import { Delete as DeleteIcon, DragIndicator } from '@mui/icons-material';
+import { Box, IconButton, Typography, Checkbox, FormControlLabel, Chip } from '@mui/material';
+import { Delete as DeleteIcon, DragIndicator, ImageNotSupported } from '@mui/icons-material';
 
 export default function SlideThumbnail({
   slide,
@@ -8,6 +8,7 @@ export default function SlideThumbnail({
   isSelected,
   onSelect,
   onDelete,
+  onToggleNoImages,
   deckId,
   isDragging = false,
 }) {
@@ -169,6 +170,42 @@ export default function SlideThumbnail({
           </Typography>
         </Box>
       )}
+
+      {/* No Images Checkbox and Indicator */}
+      <Box
+        sx={{
+          px: 1.5,
+          py: 1,
+          bgcolor: isSelected ? 'background.paper' : 'background.default',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={slide.noImages || false}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleNoImages?.(slide.id, slide.noImages);
+              }}
+              size="small"
+            />
+          }
+          label={<Typography variant="caption">No images</Typography>}
+          onClick={(e) => e.stopPropagation()}
+        />
+        {slide.noImages && (
+          <Chip
+            icon={<ImageNotSupported />}
+            label="Text only"
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: '0.65rem', height: 20 }}
+          />
+        )}
+      </Box>
     </Box>
   );
 }

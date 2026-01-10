@@ -11,6 +11,7 @@ export default function SlidePanel({
   onDeleteSlide,
   onAddSlide,
   onReorderSlides,
+  onToggleNoImages,
   deckId,
 }) {
   const handleDragEnd = (result) => {
@@ -124,6 +125,7 @@ export default function SlidePanel({
                           isSelected={selectedSlideId === slide.id}
                           onSelect={() => onSelectSlide(slide.id)}
                           onDelete={onDeleteSlide}
+                          onToggleNoImages={onToggleNoImages}
                           deckId={deckId}
                           isDragging={snapshot.isDragging}
                         />

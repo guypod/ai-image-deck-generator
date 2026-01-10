@@ -26,7 +26,7 @@ export default function SlideDeckView() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { deck, loading: deckLoading, error: deckError } = useDeck(deckId);
-  const { slides, loading: slidesLoading, createSlide, deleteSlide, reorderSlides, refresh: refreshSlides } = useSlides(deckId);
+  const { slides, loading: slidesLoading, createSlide, updateSlide, deleteSlide, reorderSlides, refresh: refreshSlides } = useSlides(deckId);
 
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -124,6 +124,15 @@ export default function SlideDeckView() {
     }
   };
 
+  // Toggle no images for a slide
+  const handleToggleNoImages = async (slideId, currentValue) => {
+    try {
+      await updateSlide(slideId, { noImages: !currentValue });
+    } catch (error) {
+      alert(`Error updating slide: ${error.message}`);
+    }
+  };
+
   if (deckLoading || slidesLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
@@ -196,6 +205,7 @@ export default function SlideDeckView() {
           onDeleteSlide={handleDeleteSlide}
           onAddSlide={handleAddSlide}
           onReorderSlides={handleReorderSlides}
+          onToggleNoImages={handleToggleNoImages}
           deckId={deckId}
         />
 
