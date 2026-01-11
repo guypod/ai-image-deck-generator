@@ -22,7 +22,7 @@ export default function SlidePanel({
   useEffect(() => {
     if (selectedSlideId && slideRefs.current[selectedSlideId]) {
       slideRefs.current[selectedSlideId].scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'instant',
         block: 'nearest',
       });
     }
