@@ -469,7 +469,10 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
 
   console.log(`Starting PowerPoint export for deck ${deckId}...`);
 
-  // Export to PowerPoint buffer (use Google Slides template if configured)
+  // Get local PowerPoint template path if configured
+  const localTemplatePath = await fileSystem.getPowerPointTemplatePath();
+
+  // Export to PowerPoint buffer (prefer local template, fall back to Google Slides template)
   const result = await exportToPowerPointBuffer(
     deck,
     slides,
@@ -478,8 +481,10 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
     exportTitle,
     {
       fromSlideIndex,
+      localTemplatePath,
+      templateSlideIndex: settings.powerPoint?.templateSlideIndex || settings.googleSlides?.templateSlideIndex || 1,
+      // Fall back to Google template if no local template
       templateUrl: settings.googleSlides?.templateSlideUrl || null,
-      templateSlideIndex: settings.googleSlides?.templateSlideIndex || 1,
       credentials: settings.googleSlides?.credentials || null
     }
   );

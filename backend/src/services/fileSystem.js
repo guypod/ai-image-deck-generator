@@ -853,6 +853,77 @@ export async function saveSettings(settings) {
   return settings;
 }
 
+// ===== POWERPOINT TEMPLATE OPERATIONS =====
+
+/**
+ * Get PowerPoint templates directory
+ */
+function getTemplatesDir() {
+  return path.join(getStorageDir(), 'templates');
+}
+
+/**
+ * Save PowerPoint template
+ * @param {Buffer} templateBuffer - The template file buffer
+ * @param {string} filename - Original filename (for extension)
+ * @returns {string} - The saved filename
+ */
+export async function savePowerPointTemplate(templateBuffer, filename) {
+  await initStorage();
+  const templatesDir = getTemplatesDir();
+  await fs.mkdir(templatesDir, { recursive: true });
+
+  // Use a fixed name for the PowerPoint template
+  const extension = path.extname(filename) || '.pptx';
+  const savedFilename = `powerpoint-template${extension}`;
+  const templatePath = path.join(templatesDir, savedFilename);
+
+  await fs.writeFile(templatePath, templateBuffer);
+  console.log(`PowerPoint template saved: ${templatePath}`);
+
+  return savedFilename;
+}
+
+/**
+ * Delete PowerPoint template
+ */
+export async function deletePowerPointTemplate() {
+  const templatesDir = getTemplatesDir();
+  try {
+    const files = await fs.readdir(templatesDir);
+    for (const file of files) {
+      if (file.startsWith('powerpoint-template')) {
+        await fs.unlink(path.join(templatesDir, file));
+        console.log(`PowerPoint template deleted: ${file}`);
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Get PowerPoint template path
+ * @returns {string|null} - Full path to template or null if not found
+ */
+export async function getPowerPointTemplatePath() {
+  const templatesDir = getTemplatesDir();
+  try {
+    const files = await fs.readdir(templatesDir);
+    const templateFile = files.find(f => f.startsWith('powerpoint-template'));
+    if (templateFile) {
+      return path.join(templatesDir, templateFile);
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+  return null;
+}
+
 // ===== EXPORT STATE OPERATIONS =====
 
 /**
@@ -937,6 +1008,9 @@ export default {
   getEntityImagePath,
   getSettings,
   saveSettings,
+  savePowerPointTemplate,
+  deletePowerPointTemplate,
+  getPowerPointTemplatePath,
   getExportState,
   saveExportState,
   clearExportState

@@ -1,10 +1,28 @@
 import express from 'express';
+import multer from 'multer';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { updateSettingsSchema, maskSettings } from '../models/Settings.js';
 import * as fileSystem from '../services/fileSystem.js';
 
 const router = express.Router();
+
+// Configure multer for PowerPoint template uploads
+const templateUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50 MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only .pptx files
+    const validExtensions = ['.pptx', '.ppt'];
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!validExtensions.includes(ext)) {
+      return cb(new Error('Only PowerPoint files (.pptx, .ppt) are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
 
 /**
  * GET /api/settings
@@ -48,8 +66,65 @@ router.put('/', validate(updateSettingsSchema), asyncHandler(async (req, res) =>
     updates.googleSlides.templateSlideIndex = req.body.googleSlidesTemplateIndex || 1;
   }
 
+  if (req.body.powerPointTemplateIndex !== undefined) {
+    if (!updates.powerPoint) {
+      updates.powerPoint = { templateFilename: null, templateSlideIndex: 1 };
+    }
+    updates.powerPoint.templateSlideIndex = req.body.powerPointTemplateIndex || 1;
+  }
+
   const savedSettings = await fileSystem.saveSettings(updates);
   const maskedSettings = maskSettings(savedSettings);
+  res.json(maskedSettings);
+}));
+
+/**
+ * POST /api/settings/powerpoint-template
+ * Upload PowerPoint template file
+ */
+router.post(
+  '/powerpoint-template',
+  templateUpload.single('template'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: 'PowerPoint template file is required' });
+    }
+
+    // Save the template file
+    const savedFilename = await fileSystem.savePowerPointTemplate(
+      req.file.buffer,
+      req.file.originalname
+    );
+
+    // Update settings with the template filename
+    const settings = await fileSystem.getSettings();
+    if (!settings.powerPoint) {
+      settings.powerPoint = { templateFilename: null, templateSlideIndex: 1 };
+    }
+    settings.powerPoint.templateFilename = savedFilename;
+    await fileSystem.saveSettings(settings);
+
+    const maskedSettings = maskSettings(settings);
+    res.status(201).json(maskedSettings);
+  })
+);
+
+/**
+ * DELETE /api/settings/powerpoint-template
+ * Delete PowerPoint template
+ */
+router.delete('/powerpoint-template', asyncHandler(async (req, res) => {
+  // Delete the template file
+  await fileSystem.deletePowerPointTemplate();
+
+  // Update settings to clear the template filename
+  const settings = await fileSystem.getSettings();
+  if (settings.powerPoint) {
+    settings.powerPoint.templateFilename = null;
+  }
+  await fileSystem.saveSettings(settings);
+
+  const maskedSettings = maskSettings(settings);
   res.json(maskedSettings);
 }));
 

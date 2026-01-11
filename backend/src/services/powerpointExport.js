@@ -90,22 +90,24 @@ async function downloadTemplateAsPptx(templateUrl, credentials, cacheDir) {
 }
 
 /**
- * Export deck to PowerPoint file using Google Slides template
+ * Export deck to PowerPoint file using a local template
  * @param {Object} deck - Deck object
  * @param {Array} slides - Array of slide objects
  * @param {string} deckId - Deck ID
  * @param {string} storageDir - Storage directory path
  * @param {string} title - Title for presentation
  * @param {Object} options - Additional options
- * @param {string} options.templateUrl - Google Slides template URL
+ * @param {string} options.localTemplatePath - Path to local PowerPoint template file
+ * @param {string} options.templateUrl - Google Slides template URL (fallback if no local template)
  * @param {number} options.templateSlideIndex - Which slide in template to use (1-based)
- * @param {Object} options.credentials - Google OAuth credentials
+ * @param {Object} options.credentials - Google OAuth credentials (for Google template fallback)
  * @param {number} options.fromSlideIndex - Start export from this slide index (0-based)
  * @param {Function} options.onProgress - Progress callback: (current, total) => void
  * @returns {Object} - { buffer, fileName, slideCount }
  */
 export async function exportToPowerPointBuffer(deck, slides, deckId, storageDir, title, options = {}) {
   const {
+    localTemplatePath = null,
     templateUrl = null,
     templateSlideIndex = 1,
     credentials = null,
@@ -129,8 +131,19 @@ export async function exportToPowerPointBuffer(deck, slides, deckId, storageDir,
 
   let templatePath = null;
 
-  // Try to download template if URL is provided
-  if (templateUrl && credentials) {
+  // First, try to use local template if provided
+  if (localTemplatePath) {
+    try {
+      await fs.access(localTemplatePath);
+      templatePath = localTemplatePath;
+      console.log('Using local PowerPoint template:', templatePath);
+    } catch (err) {
+      console.warn('Local template not found:', localTemplatePath);
+    }
+  }
+
+  // Fall back to downloading from Google if no local template
+  if (!templatePath && templateUrl && credentials) {
     try {
       templatePath = await downloadTemplateAsPptx(templateUrl, credentials, tempDir);
     } catch (err) {

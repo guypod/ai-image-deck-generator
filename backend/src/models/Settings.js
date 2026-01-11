@@ -54,7 +54,21 @@ export const settingsSchema = Joi.object({
         'number.integer': 'Template slide index must be an integer',
         'number.min': 'Template slide index must be at least 1'
       })
-  }).default({ credentials: null, templateSlideUrl: null, templateSlideIndex: 1 })
+  }).default({ credentials: null, templateSlideUrl: null, templateSlideIndex: 1 }),
+  powerPoint: Joi.object({
+    templateFilename: Joi.string()
+      .allow('', null)
+      .default(null),
+    templateSlideIndex: Joi.number()
+      .integer()
+      .min(1)
+      .default(1)
+      .messages({
+        'number.base': 'Template slide index must be a number',
+        'number.integer': 'Template slide index must be an integer',
+        'number.min': 'Template slide index must be at least 1'
+      })
+  }).default({ templateFilename: null, templateSlideIndex: 1 })
 });
 
 // Validation for updating settings
@@ -86,6 +100,14 @@ export const updateSettingsSchema = Joi.object({
       'number.base': 'Template slide index must be a number',
       'number.integer': 'Template slide index must be an integer',
       'number.min': 'Template slide index must be at least 1'
+    }),
+  powerPointTemplateIndex: Joi.number()
+    .integer()
+    .min(1)
+    .messages({
+      'number.base': 'PowerPoint template slide index must be a number',
+      'number.integer': 'PowerPoint template slide index must be an integer',
+      'number.min': 'PowerPoint template slide index must be at least 1'
     })
 }).min(1); // At least one field must be present
 
@@ -124,6 +146,10 @@ export function maskSettings(settings) {
       email: settings.googleSlides?.credentials?.email || null,
       templateSlideUrl: settings.googleSlides?.templateSlideUrl || null,
       templateSlideIndex: settings.googleSlides?.templateSlideIndex || 1
+    },
+    powerPoint: {
+      templateFilename: settings.powerPoint?.templateFilename || null,
+      templateSlideIndex: settings.powerPoint?.templateSlideIndex || 1
     }
   };
 }

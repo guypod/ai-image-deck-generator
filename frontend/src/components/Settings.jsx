@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,9 +15,11 @@ import {
   Divider,
   TextField,
   Snackbar,
+  IconButton,
 } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowBack, UploadFile, Delete } from '@mui/icons-material';
 import { useSettings } from '../hooks/useSettings';
+import { settingsAPI } from '../services/api';
 import GlobalEntityManager from './GlobalEntityManager';
 
 export default function Settings() {
@@ -28,8 +30,12 @@ export default function Settings() {
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
   const [googleSlidesTemplateUrl, setGoogleSlidesTemplateUrl] = useState('');
   const [googleSlidesTemplateIndex, setGoogleSlidesTemplateIndex] = useState(1);
+  const [powerPointTemplateFilename, setPowerPointTemplateFilename] = useState(null);
+  const [powerPointTemplateIndex, setPowerPointTemplateIndex] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const pptxInputRef = useRef(null);
 
   useEffect(() => {
     if (settings) {
@@ -37,6 +43,8 @@ export default function Settings() {
       setDefaultVariantCount(settings.defaultVariantCount);
       setGoogleSlidesTemplateUrl(settings.googleSlides?.templateSlideUrl || '');
       setGoogleSlidesTemplateIndex(settings.googleSlides?.templateSlideIndex || 1);
+      setPowerPointTemplateFilename(settings.powerPoint?.templateFilename || null);
+      setPowerPointTemplateIndex(settings.powerPoint?.templateSlideIndex || 1);
     }
   }, [settings]);
 
@@ -48,12 +56,45 @@ export default function Settings() {
         defaultVariantCount,
         googleSlidesTemplateUrl: googleSlidesTemplateUrl || null,
         googleSlidesTemplateIndex: googleSlidesTemplateIndex || 1,
+        powerPointTemplateIndex: powerPointTemplateIndex || 1,
       });
       setSnackbar({ open: true, message: 'Settings saved successfully', severity: 'success' });
     } catch (err) {
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePptxTemplateUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingTemplate(true);
+    try {
+      const response = await settingsAPI.uploadPowerPointTemplate(file);
+      setPowerPointTemplateFilename(response.data.powerPoint?.templateFilename || file.name);
+      setSnackbar({ open: true, message: 'PowerPoint template uploaded successfully', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setUploadingTemplate(false);
+      if (pptxInputRef.current) {
+        pptxInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeletePptxTemplate = async () => {
+    setUploadingTemplate(true);
+    try {
+      await settingsAPI.deletePowerPointTemplate();
+      setPowerPointTemplateFilename(null);
+      setSnackbar({ open: true, message: 'PowerPoint template deleted', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setUploadingTemplate(false);
     }
   };
 
@@ -191,6 +232,81 @@ export default function Settings() {
               <li>Create a Google Slides presentation to use as a template</li>
               <li>Share it with "Anyone with the link can view"</li>
               <li>Copy the presentation URL and paste it above</li>
+              <li>Click "Save Settings" below</li>
+            </ol>
+          </Typography>
+        </Alert>
+
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
+      </Paper>
+
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          PowerPoint Export
+        </Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          Upload a PowerPoint template file (.pptx) to use as the base for exports. The template slide will be duplicated for each slide in your deck.
+        </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <input
+            type="file"
+            ref={pptxInputRef}
+            onChange={handlePptxTemplateUpload}
+            accept=".pptx,.ppt"
+            style={{ display: 'none' }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={uploadingTemplate ? <CircularProgress size={20} /> : <UploadFile />}
+            onClick={() => pptxInputRef.current?.click()}
+            disabled={uploadingTemplate}
+          >
+            {powerPointTemplateFilename ? 'Replace Template' : 'Upload Template'}
+          </Button>
+          {powerPointTemplateFilename && (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+                {powerPointTemplateFilename}
+              </Typography>
+              <IconButton
+                onClick={handleDeletePptxTemplate}
+                disabled={uploadingTemplate}
+                color="error"
+                size="small"
+              >
+                <Delete />
+              </IconButton>
+            </>
+          )}
+        </Box>
+
+        <TextField
+          fullWidth
+          type="number"
+          label="Template Slide Index"
+          value={powerPointTemplateIndex}
+          onChange={(e) => setPowerPointTemplateIndex(parseInt(e.target.value) || 1)}
+          placeholder="1"
+          helperText="Which slide number in the template to duplicate for each slide (1 = first slide, etc.)"
+          inputProps={{ min: 1 }}
+          sx={{ mb: 2 }}
+        />
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>To set up PowerPoint export:</strong>
+            <ol style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+              <li>Create a PowerPoint presentation to use as a template</li>
+              <li>Design a slide with your preferred styling and layout</li>
+              <li>Upload the .pptx file above</li>
               <li>Click "Save Settings" below</li>
             </ol>
           </Typography>

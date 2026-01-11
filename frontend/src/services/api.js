@@ -81,6 +81,14 @@ export const settingsAPI = {
   get: () => api.get('/settings'),
   update: (data) => api.put('/settings', data),
   testApiKey: (data) => api.post('/settings/test-api-key', data),
+  uploadPowerPointTemplate: (file) => {
+    const formData = new FormData();
+    formData.append('template', file);
+    return api.post('/settings/powerpoint-template', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deletePowerPointTemplate: () => api.delete('/settings/powerpoint-template'),
 };
 
 // Global Entities API
