@@ -1,4 +1,4 @@
-import Automizer from 'pptx-automizer';
+import { Automizer } from 'pptx-automizer';
 import { google } from 'googleapis';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
