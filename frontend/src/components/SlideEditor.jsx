@@ -246,7 +246,11 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
 
       const response = await fetch(
         `http://localhost:3001/api/decks/${deckId}/slides/${slideId}/generate-description`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ speakerNotes })
+        }
       );
 
       if (!response.ok) {

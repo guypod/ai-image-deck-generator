@@ -65,9 +65,11 @@ router.put('/:slideId', validate(updateSlideSchema), asyncHandler(async (req, re
 /**
  * POST /api/decks/:deckId/slides/:slideId/generate-description
  * Generate image description using ChatGPT
+ * Accepts optional speakerNotes in body to use current unsaved text
  */
 router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
   const { deckId, slideId } = req.params;
+  const { speakerNotes: providedSpeakerNotes } = req.body || {};
 
   if (!process.env.OPENAI_API_KEY) {
     return res.status(400).json({
@@ -78,6 +80,9 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
   const deck = await fileSystem.getDeck(deckId);
   const slide = await fileSystem.getSlide(deckId, slideId);
   const allSlides = await fileSystem.getSlides(deckId);
+
+  // Use provided speaker notes if available, otherwise use saved ones
+  const currentSpeakerNotes = providedSpeakerNotes !== undefined ? providedSpeakerNotes : slide.speakerNotes;
 
   // Get merged entities (deck + global)
   const mergedEntities = await fileSystem.getMergedEntities(deckId);
@@ -106,7 +111,7 @@ router.post('/:slideId/generate-description', asyncHandler(async (req, res) => {
     .map(s => s.speakerNotes);
 
   const description = await openaiDescriptions.generateImageDescription(
-    slide.speakerNotes,
+    currentSpeakerNotes,
     visualStyle,
     mergedEntities,
     deck.themeImages || [],
