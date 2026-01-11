@@ -14,6 +14,7 @@ import {
   Alert,
   Divider,
   TextField,
+  Snackbar,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useSettings } from '../hooks/useSettings';
@@ -28,6 +29,7 @@ export default function Settings() {
   const [googleSlidesTemplateUrl, setGoogleSlidesTemplateUrl] = useState('');
   const [googleSlidesTemplateIndex, setGoogleSlidesTemplateIndex] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
     if (settings) {
@@ -47,9 +49,9 @@ export default function Settings() {
         googleSlidesTemplateUrl: googleSlidesTemplateUrl || null,
         googleSlidesTemplateIndex: googleSlidesTemplateIndex || 1,
       });
-      alert('Settings saved successfully');
+      setSnackbar({ open: true, message: 'Settings saved successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
       setSaving(false);
     }
@@ -205,6 +207,22 @@ export default function Settings() {
           {saving ? 'Saving...' : 'Save Settings'}
         </Button>
       </Paper>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
