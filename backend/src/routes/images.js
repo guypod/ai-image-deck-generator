@@ -7,7 +7,7 @@ import { generateImagesSchema, tweakImageSchema } from '../models/Slide.js';
 import * as fileSystem from '../services/fileSystem.js';
 import * as geminiNanoBanana from '../services/geminiNanoBanana.js';
 import * as imageProcessor from '../services/imageProcessor.js';
-import { buildFullPrompt, getReferencedEntityImages } from '../utils/promptParser.js';
+import { buildFullPrompt, getReferencedEntityImages, parseEntityReferences } from '../utils/promptParser.js';
 import { executeInParallel } from '../utils/asyncPool.js';
 
 const router = express.Router();
@@ -219,8 +219,8 @@ router.post(
     const mergedEntities = await fileSystem.getMergedEntities(deckId);
     const globalEntities = await fileSystem.getGlobalEntities();
 
-    // Parse entity references in the tweak prompt
-    const { parsedText: parsedPrompt, unknownEntities } = buildFullPrompt('', prompt, mergedEntities, []);
+    // Parse entity references in the tweak prompt (just replace @Entity with readable names)
+    const { parsedText: parsedPrompt, unknownEntities } = parseEntityReferences(prompt, mergedEntities);
 
     // Get referenced entity images from the tweak prompt
     const referencedEntities = getReferencedEntityImages(prompt, mergedEntities, deckId);
