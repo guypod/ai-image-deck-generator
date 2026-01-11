@@ -213,24 +213,21 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const handleGenerate = async () => {
     let finalDescription = imageDescription;
 
-    // Auto-generate description if empty
-    if (!imageDescription.trim()) {
-      try {
+    // Show placeholder cards immediately
+    setGeneratingCount(variantCount);
+
+    try {
+      // Auto-generate description if empty
+      if (!imageDescription.trim()) {
         finalDescription = await handleGenerateDescription();
         // Save the generated description
         await updateSlide({ speakerNotes, imageDescription: finalDescription });
         await refresh();
         if (isEmbedded && onSlideChange) onSlideChange();
-      } catch (err) {
-        // Error already alerted in handleGenerateDescription
-        return;
+      } else if (unsavedChanges) {
+        await handleSave();
       }
-    } else if (unsavedChanges) {
-      await handleSave();
-    }
 
-    try {
-      setGeneratingCount(variantCount); // Show placeholder cards
       const result = await generateImages(variantCount, service);
       // Store the prompt that was used
       if (result.prompt) {
