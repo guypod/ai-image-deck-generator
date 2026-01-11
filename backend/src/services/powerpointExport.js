@@ -176,41 +176,18 @@ export async function exportToPowerPointBuffer(deck, slides, deckId, storageDir,
   const slideIndex = templateSlideIndex - 1;
 
   // Add slides from template
+  // Note: pptx-automizer duplicates slides from the template as-is
+  // It doesn't support adding new elements (like images) dynamically
+  // The template slide will be copied with its existing layout and styling
   for (let i = 0; i < slidesToExport.length; i++) {
-    const slideData = slidesToExport[i];
-
     if (onProgress) {
       onProgress(i + 1, slidesToExport.length);
     }
 
-    console.log(`Processing slide ${i + 1}/${slidesToExport.length}: ${slideData.id}`);
+    console.log(`Duplicating template slide ${i + 1}/${slidesToExport.length}`);
 
-    // Add slide from template
-    pres.addSlide('template', slideIndex + 1, async (slide) => {
-      // Determine if slide should have image
-      const shouldHaveImage = !slideData.noImages && !slideData.sceneStart;
-      const pinnedImage = slideData.generatedImages?.find(img => img.isPinned);
-      const hasImage = shouldHaveImage && pinnedImage;
-
-      if (hasImage) {
-        const imagePath = path.join(storageDir, `deck-${deckId}`, slideData.id, pinnedImage.filename);
-        try {
-          // Add image as background
-          slide.addElement('image', {
-            file: imagePath,
-            x: 0,
-            y: 0,
-            w: '100%',
-            h: '100%'
-          });
-        } catch (err) {
-          console.error(`Failed to add image for slide ${i + 1}:`, err.message);
-        }
-      }
-
-      // Note: pptx-automizer has limited support for modifying text/notes
-      // The template styling will be preserved
-    });
+    // Simply duplicate the template slide without modifications
+    pres.addSlide('template', slideIndex + 1);
   }
 
   // Generate output
