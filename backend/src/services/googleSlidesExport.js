@@ -10,6 +10,69 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * Retry wrapper for API calls with exponential backoff
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Maximum number of retries
+ * @param {number} baseDelay - Base delay in ms (doubles each retry)
+ * @param {string} operationName - Name for logging
+ */
+// Rate limiting: Google Slides API has ~60 write requests per minute limit
+// We'll add a delay between requests to stay under the limit
+const RATE_LIMIT_DELAY_MS = 1200; // ~50 requests per minute to be safe
+let lastApiCallTime = 0;
+
+async function rateLimitedDelay() {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastApiCallTime;
+  if (timeSinceLastCall < RATE_LIMIT_DELAY_MS) {
+    const waitTime = RATE_LIMIT_DELAY_MS - timeSinceLastCall;
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  lastApiCallTime = Date.now();
+}
+
+async function withRetry(fn, maxRetries = 3, baseDelay = 2000, operationName = 'API call') {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await rateLimitedDelay();
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const isRateLimit = error.status === 429 || error.code === 429;
+      const isRetryable =
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        isRateLimit ||
+        error.response?.status === 429 ||
+        error.response?.status === 500 ||
+        error.response?.status === 502 ||
+        error.response?.status === 503 ||
+        error.response?.status === 504;
+
+      if (!isRetryable || attempt === maxRetries) {
+        // Log detailed error info
+        console.error(`${operationName} failed after ${attempt} attempt(s):`, {
+          message: error.message,
+          code: error.code,
+          status: error.status || error.response?.status,
+          statusText: error.response?.statusText,
+          errors: error.errors
+        });
+        throw error;
+      }
+
+      // For rate limits, wait longer (60 seconds as recommended by Google)
+      const delay = isRateLimit ? 60000 : baseDelay * Math.pow(2, attempt - 1);
+      console.log(`${operationName} failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Extract presentation ID from Google Slides URL
  * @param {string} url - Google Slides URL
  * @returns {string} - Presentation ID
@@ -98,14 +161,15 @@ async function initializeDriveClient(credentials) {
  * @returns {string} - New presentation ID
  */
 async function copyPresentation(driveClient, templateId, newTitle) {
-  const response = await driveClient.files.copy({
-    fileId: templateId,
-    requestBody: {
-      name: newTitle
-    }
-  });
-
-  return response.data.id;
+  return withRetry(async () => {
+    const response = await driveClient.files.copy({
+      fileId: templateId,
+      requestBody: {
+        name: newTitle
+      }
+    });
+    return response.data.id;
+  }, 3, 2000, 'Copy presentation');
 }
 
 /**
@@ -116,27 +180,32 @@ async function copyPresentation(driveClient, templateId, newTitle) {
  * @returns {string} - Uploaded file ID
  */
 async function uploadImageToDrive(driveClient, imagePath, fileName) {
-  const response = await driveClient.files.create({
-    requestBody: {
-      name: fileName,
-      mimeType: 'image/jpeg'
-    },
-    media: {
-      mimeType: 'image/jpeg',
-      body: createReadStream(imagePath)
-    }
-  });
+  const fileId = await withRetry(async () => {
+    const response = await driveClient.files.create({
+      requestBody: {
+        name: fileName,
+        mimeType: 'image/jpeg'
+      },
+      media: {
+        mimeType: 'image/jpeg',
+        body: createReadStream(imagePath)
+      }
+    });
+    return response.data.id;
+  }, 3, 2000, 'Upload image to Drive');
 
   // Make the file publicly accessible
-  await driveClient.permissions.create({
-    fileId: response.data.id,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone'
-    }
-  });
+  await withRetry(async () => {
+    await driveClient.permissions.create({
+      fileId: fileId,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
+      }
+    });
+  }, 3, 2000, 'Set image permissions');
 
-  return response.data.id;
+  return fileId;
 }
 
 /**
@@ -148,9 +217,9 @@ async function uploadImageToDrive(driveClient, imagePath, fileName) {
  */
 async function addImageToSlide(slidesClient, presentationId, slideId, imageUrl) {
   // Get presentation dimensions
-  const presentation = await slidesClient.presentations.get({
-    presentationId
-  });
+  const presentation = await withRetry(async () => {
+    return slidesClient.presentations.get({ presentationId });
+  }, 3, 2000, 'Get presentation for image');
 
   const pageWidth = presentation.data.pageSize.width.magnitude;
   const pageHeight = presentation.data.pageSize.height.magnitude;
@@ -175,10 +244,12 @@ async function addImageToSlide(slidesClient, presentationId, slideId, imageUrl) 
     }
   }];
 
-  await slidesClient.presentations.batchUpdate({
-    presentationId,
-    requestBody: { requests }
-  });
+  await withRetry(async () => {
+    await slidesClient.presentations.batchUpdate({
+      presentationId,
+      requestBody: { requests }
+    });
+  }, 3, 2000, 'Add image to slide');
 }
 
 /**
@@ -190,9 +261,9 @@ async function addImageToSlide(slidesClient, presentationId, slideId, imageUrl) 
  */
 async function addTextToSlide(slidesClient, presentationId, slideId, text) {
   // Get presentation dimensions
-  const presentation = await slidesClient.presentations.get({
-    presentationId
-  });
+  const presentation = await withRetry(async () => {
+    return slidesClient.presentations.get({ presentationId });
+  }, 3, 2000, 'Get presentation for text');
 
   const pageWidth = presentation.data.pageSize.width.magnitude;
   const pageHeight = presentation.data.pageSize.height.magnitude;
@@ -255,10 +326,12 @@ async function addTextToSlide(slidesClient, presentationId, slideId, text) {
     }
   ];
 
-  await slidesClient.presentations.batchUpdate({
-    presentationId,
-    requestBody: { requests }
-  });
+  await withRetry(async () => {
+    await slidesClient.presentations.batchUpdate({
+      presentationId,
+      requestBody: { requests }
+    });
+  }, 3, 2000, 'Add text to slide');
 }
 
 /**
@@ -271,12 +344,11 @@ async function addTextToSlide(slidesClient, presentationId, slideId, text) {
 async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
   try {
     console.log(`Adding speaker notes to slide ${slideId}...`);
-    console.log(`Notes content (${notes.length} chars):`, notes.substring(0, 100) + '...');
 
     // Get the presentation with slide details
-    const presentation = await slidesClient.presentations.get({
-      presentationId
-    });
+    const presentation = await withRetry(async () => {
+      return slidesClient.presentations.get({ presentationId });
+    }, 3, 2000, 'Get presentation for notes');
 
     const slide = presentation.data.slides.find(s => s.objectId === slideId);
     if (!slide || !slide.slideProperties || !slide.slideProperties.notesPage) {
@@ -285,31 +357,27 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
     }
 
     const notesPageId = slide.slideProperties.notesPage.objectId;
-    console.log(`Found notes page ID: ${notesPageId}`);
 
-    // Get the presentation again with the notes page included
-    const presentationWithNotes = await slidesClient.presentations.pages.get({
-      presentationId,
-      pageObjectId: notesPageId
-    });
+    // Get the notes page
+    const presentationWithNotes = await withRetry(async () => {
+      return slidesClient.presentations.pages.get({
+        presentationId,
+        pageObjectId: notesPageId
+      });
+    }, 3, 2000, 'Get notes page');
 
     const notesPage = presentationWithNotes.data;
     if (!notesPage || !notesPage.pageElements) {
       console.warn('Notes page elements not found for slide:', slideId);
-      console.warn('Notes page data:', JSON.stringify(notesPage, null, 2));
       return;
     }
-
-    console.log(`Notes page has ${notesPage.pageElements.length} elements`);
 
     // Find the notes shape - look for a shape with a TEXT placeholder
     let notesShapeId = null;
     for (const element of notesPage.pageElements) {
-      console.log(`Element ${element.objectId}: type=${element.shape?.placeholder?.type}, shape=${!!element.shape}`);
       if (element.shape && element.shape.placeholder &&
           element.shape.placeholder.type === 'BODY') {
         notesShapeId = element.objectId;
-        console.log(`Found notes shape by BODY placeholder: ${notesShapeId}`);
         break;
       }
     }
@@ -317,16 +385,10 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
     // If not found by placeholder, try the second element (common pattern)
     if (!notesShapeId && notesPage.pageElements.length >= 2) {
       notesShapeId = notesPage.pageElements[1].objectId;
-      console.log(`Using second element as notes shape: ${notesShapeId}`);
     }
 
     if (!notesShapeId) {
       console.warn('Notes shape not found for slide:', slideId);
-      console.warn('Available elements:', JSON.stringify(notesPage.pageElements.map(e => ({
-        id: e.objectId,
-        type: e.shape?.placeholder?.type,
-        hasShape: !!e.shape
-      })), null, 2));
       return;
     }
 
@@ -358,15 +420,16 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
       }
     });
 
-    console.log(`Executing batchUpdate to add notes to shape ${notesShapeId} (hasExistingText: ${hasExistingText})`);
-    await slidesClient.presentations.batchUpdate({
-      presentationId,
-      requestBody: { requests }
-    });
+    await withRetry(async () => {
+      await slidesClient.presentations.batchUpdate({
+        presentationId,
+        requestBody: { requests }
+      });
+    }, 3, 2000, 'Add speaker notes');
     console.log(`Successfully added speaker notes to slide ${slideId}`);
   } catch (error) {
     console.error('Error adding speaker notes to slide', slideId, ':', error.message);
-    console.error('Full error:', error);
+    // Don't throw - speaker notes are not critical
   }
 }
 
@@ -460,9 +523,9 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     }
 
     // Get the presentation to find existing slides
-    const presentation = await slidesClient.presentations.get({
-      presentationId: newPresentationId
-    });
+    const presentation = await withRetry(async () => {
+      return slidesClient.presentations.get({ presentationId: newPresentationId });
+    }, 3, 2000, 'Get presentation');
 
     // Get the template slide to duplicate (convert 1-based index to 0-based)
     const templateSlides = presentation.data.slides;
@@ -478,33 +541,37 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     console.log(`Creating ${slidesToExport.length} slides...`);
     for (let i = 0; i < slidesToExport.length; i++) {
       // Duplicate the slide
-      const duplicateResponse = await slidesClient.presentations.batchUpdate({
-        presentationId: newPresentationId,
-        requestBody: {
-          requests: [{
-            duplicateObject: {
-              objectId: templateSlideId,
-              objectIds: {}
-            }
-          }]
-        }
-      });
+      const duplicateResponse = await withRetry(async () => {
+        return slidesClient.presentations.batchUpdate({
+          presentationId: newPresentationId,
+          requestBody: {
+            requests: [{
+              duplicateObject: {
+                objectId: templateSlideId,
+                objectIds: {}
+              }
+            }]
+          }
+        });
+      }, 3, 2000, `Duplicate slide ${i + 1}`);
 
       const newSlideId = duplicateResponse.data.replies[0].duplicateObject.objectId;
       slideIds.push(newSlideId);
 
       // Move the duplicated slide to position i (at the beginning)
-      await slidesClient.presentations.batchUpdate({
-        presentationId: newPresentationId,
-        requestBody: {
-          requests: [{
-            updateSlidesPosition: {
-              slideObjectIds: [newSlideId],
-              insertionIndex: i
-            }
-          }]
-        }
-      });
+      await withRetry(async () => {
+        return slidesClient.presentations.batchUpdate({
+          presentationId: newPresentationId,
+          requestBody: {
+            requests: [{
+              updateSlidesPosition: {
+                slideObjectIds: [newSlideId],
+                insertionIndex: i
+              }
+            }]
+          }
+        });
+      }, 3, 2000, `Position slide ${i + 1}`);
 
       // Update state after each slide creation
       state.slideIds = slideIds;
