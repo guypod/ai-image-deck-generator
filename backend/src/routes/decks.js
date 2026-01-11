@@ -9,6 +9,7 @@ import { parseTextToSlides } from '../utils/textParser.js';
 import * as openaiDescriptions from '../services/openaiDescriptions.js';
 import { executeInParallel } from '../utils/asyncPool.js';
 import { exportToGoogleSlides } from '../services/googleSlidesExport.js';
+import { exportToPowerPointBuffer } from '../services/powerpointExport.js';
 
 const router = express.Router();
 
@@ -440,6 +441,48 @@ router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (r
     url: result.url,
     exportedSlideCount: result.exportedSlideCount
   });
+}));
+
+/**
+ * POST /api/decks/:deckId/export-pptx
+ * Export deck to PowerPoint file (downloads as .pptx)
+ * Body options:
+ *   - title: Presentation title (optional, defaults to deck name)
+ *   - fromSlideIndex: Start from this slide index (0-based, optional)
+ */
+router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(async (req, res) => {
+  const { deckId } = req.params;
+  const { title, fromSlideIndex = 0 } = req.body;
+
+  // Get deck and slides
+  const deck = await fileSystem.getDeck(deckId);
+  const slides = await fileSystem.getSlides(deckId);
+
+  // Use deck name as title if not provided
+  const exportTitle = title || deck.name;
+
+  // Get storage directory
+  const storageDir = fileSystem.getStorageDir();
+
+  console.log(`Starting PowerPoint export for deck ${deckId}...`);
+
+  // Export to PowerPoint buffer
+  const result = await exportToPowerPointBuffer(
+    deck,
+    slides,
+    deckId,
+    storageDir,
+    exportTitle,
+    { fromSlideIndex }
+  );
+
+  // Set headers for file download
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+  res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+  res.setHeader('Content-Length', result.buffer.length);
+
+  // Send the buffer
+  res.send(result.buffer);
 }));
 
 export default router;

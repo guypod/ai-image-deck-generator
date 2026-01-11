@@ -29,7 +29,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close, CloudUpload, Refresh } from '@mui/icons-material';
+import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close, CloudUpload, Refresh, Download } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
 import { slideAPI, exportAPI } from '../services/api';
@@ -58,6 +58,7 @@ export default function DeckEditor() {
   const [exportState, setExportState] = useState(null);
   const [exportFromSlide, setExportFromSlide] = useState(0);
   const [exportMode, setExportMode] = useState('new'); // 'new' or 'resume'
+  const [exportFormat, setExportFormat] = useState('google'); // 'google' or 'pptx'
 
   useEffect(() => {
     if (deck) {
@@ -240,32 +241,64 @@ export default function DeckEditor() {
     try {
       const exportData = {
         title: deck.name,
-        resume: exportMode === 'resume',
         fromSlideIndex: exportMode === 'new' ? exportFromSlide : undefined
       };
 
-      const response = await exportAPI.toGoogleSlides(deckId, exportData);
+      if (exportFormat === 'pptx') {
+        // PowerPoint export - downloads as file
+        const response = await exportAPI.toPowerPoint(deckId, exportData);
 
-      // Clear export state after successful completion
-      setExportState(null);
+        // Create download link from blob
+        const blob = new Blob([response.data], {
+          type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
 
-      // Open the new presentation in a new tab
-      window.open(response.data.url, '_blank');
+        // Get filename from Content-Disposition header or use default
+        const contentDisposition = response.headers['content-disposition'];
+        const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+        link.download = filenameMatch ? filenameMatch[1] : `${deck.name}.pptx`;
 
-      setSnackbar({
-        open: true,
-        message: `Successfully exported ${response.data.exportedSlideCount} slides to Google Slides!`,
-        severity: 'success'
-      });
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        setSnackbar({
+          open: true,
+          message: 'PowerPoint file downloaded successfully!',
+          severity: 'success'
+        });
+      } else {
+        // Google Slides export
+        exportData.resume = exportMode === 'resume';
+        const response = await exportAPI.toGoogleSlides(deckId, exportData);
+
+        // Clear export state after successful completion
+        setExportState(null);
+
+        // Open the new presentation in a new tab
+        window.open(response.data.url, '_blank');
+
+        setSnackbar({
+          open: true,
+          message: `Successfully exported ${response.data.exportedSlideCount} slides to Google Slides!`,
+          severity: 'success'
+        });
+      }
     } catch (err) {
-      // Refresh export state in case it was partially saved
-      try {
-        const stateResponse = await exportAPI.getExportState(deckId);
-        if (stateResponse.data.hasExportInProgress) {
-          setExportState(stateResponse.data.state);
+      // Refresh export state in case it was partially saved (Google Slides only)
+      if (exportFormat === 'google') {
+        try {
+          const stateResponse = await exportAPI.getExportState(deckId);
+          if (stateResponse.data.hasExportInProgress) {
+            setExportState(stateResponse.data.state);
+          }
+        } catch (stateErr) {
+          console.error('Failed to refresh export state:', stateErr);
         }
-      } catch (stateErr) {
-        console.error('Failed to refresh export state:', stateErr);
       }
 
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
@@ -675,10 +708,22 @@ export default function DeckEditor() {
           ) : (
             <>
               <DialogContentText id="export-dialog-description" sx={{ mb: 2 }}>
-                This will create a new presentation in your Google account.
-                Slides with images will show the pinned image as a full-slide image. Slides without images
+                Export your presentation as a file or to Google Slides.
+                Slides with images will show the pinned image. Slides without images
                 will show the speaker notes as centered text.
               </DialogContentText>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="export-format-label">Export format</InputLabel>
+                <Select
+                  labelId="export-format-label"
+                  value={exportFormat}
+                  label="Export format"
+                  onChange={(e) => setExportFormat(e.target.value)}
+                >
+                  <MenuItem value="pptx">PowerPoint (.pptx) - Download file</MenuItem>
+                  <MenuItem value="google">Google Slides - Create in Google Drive</MenuItem>
+                </Select>
+              </FormControl>
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel id="from-slide-label">Start from slide</InputLabel>
                 <Select
@@ -705,8 +750,14 @@ export default function DeckEditor() {
           <Button onClick={handleExportCancel}>
             Cancel
           </Button>
-          <Button onClick={handleExportConfirm} variant="contained" color="success" autoFocus>
-            {exportMode === 'resume' ? 'Continue Export' : 'Start Export'}
+          <Button
+            onClick={handleExportConfirm}
+            variant="contained"
+            color="success"
+            autoFocus
+            startIcon={exportMode === 'resume' ? <Refresh /> : (exportFormat === 'pptx' ? <Download /> : <CloudUpload />)}
+          >
+            {exportMode === 'resume' ? 'Continue Export' : (exportFormat === 'pptx' ? 'Download PowerPoint' : 'Export to Google Slides')}
           </Button>
         </DialogActions>
       </Dialog>

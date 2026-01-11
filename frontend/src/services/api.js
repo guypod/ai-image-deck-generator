@@ -96,6 +96,8 @@ export const globalEntitiesAPI = {
 export const exportAPI = {
   toGoogleSlides: (deckId, data) =>
     api.post(`/decks/${deckId}/export`, data),
+  toPowerPoint: (deckId, data) =>
+    api.post(`/decks/${deckId}/export-pptx`, data, { responseType: 'blob' }),
   getExportState: (deckId) =>
     api.get(`/decks/${deckId}/export-state`),
   clearExportState: (deckId) =>
