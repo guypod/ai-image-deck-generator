@@ -29,7 +29,7 @@ import {
   DialogActions,
   Snackbar,
 } from '@mui/material';
-import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen, Close } from '@mui/icons-material';
+import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen, Close, ChevronLeft, ChevronRight, History } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
 import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
@@ -73,6 +73,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [imageToDelete, setImageToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [generatingCount, setGeneratingCount] = useState(0); // Track number of images being generated
+  const [descriptionHistory, setDescriptionHistory] = useState([]); // History of past descriptions
+  const [historyIndex, setHistoryIndex] = useState(null); // null = current, 0+ = viewing history item
 
   // Store current state in refs so we can access it during navigation
   const currentStateRef = React.useRef({
@@ -110,6 +112,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setDescriptionLocked(slide.descriptionLocked || false);
       setSceneStart(slide.sceneStart || false);
       setSceneVisualStyle(slide.sceneVisualStyle || '');
+      setDescriptionHistory(slide.descriptionHistory || []);
+      setHistoryIndex(null); // Reset to showing current description
       setUnsavedChanges(false);
     }
   }, [slide, slideId]); // Added slideId as dependency
@@ -192,9 +196,54 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     setUnsavedChanges(true);
   };
 
+  // History navigation - total items = history + current
+  const totalHistoryItems = descriptionHistory.length + 1;
+  const currentHistoryPosition = historyIndex === null ? totalHistoryItems : historyIndex + 1;
+  const isViewingHistory = historyIndex !== null;
+  const displayedDescription = isViewingHistory ? descriptionHistory[historyIndex] : imageDescription;
+
+  const handleHistoryPrev = () => {
+    if (historyIndex === null) {
+      // Currently showing current, go to last history item
+      if (descriptionHistory.length > 0) {
+        setHistoryIndex(descriptionHistory.length - 1);
+      }
+    } else if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+    }
+  };
+
+  const handleHistoryNext = () => {
+    if (historyIndex !== null) {
+      if (historyIndex < descriptionHistory.length - 1) {
+        setHistoryIndex(historyIndex + 1);
+      } else {
+        // At the end of history, go back to current
+        setHistoryIndex(null);
+      }
+    }
+  };
+
+  const handleRestoreFromHistory = () => {
+    if (historyIndex !== null && descriptionHistory[historyIndex]) {
+      setImageDescription(descriptionHistory[historyIndex]);
+      setHistoryIndex(null);
+      setUnsavedChanges(true);
+    }
+  };
+
   const handleGenerateDescription = async () => {
     setGeneratingDescription(true);
     try {
+      // First, save the current description to history if it exists
+      const currentDesc = imageDescription.trim();
+      if (currentDesc) {
+        await updateSlide({
+          pushDescriptionToHistory: true,
+          imageDescription: currentDesc // Keep current while pushing to history
+        });
+      }
+
       const response = await fetch(
         `http://localhost:3001/api/decks/${deckId}/slides/${slideId}/generate-description`,
         { method: 'POST' }
@@ -207,7 +256,15 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
 
       const data = await response.json();
       setImageDescription(data.description);
+      setHistoryIndex(null); // Reset to showing current
       setUnsavedChanges(true);
+
+      // Refresh to get updated history
+      await refresh();
+      if (slide?.descriptionHistory) {
+        setDescriptionHistory(slide.descriptionHistory);
+      }
+
       return data.description;
     } catch (err) {
       setSnackbar({ open: true, message: `Error generating description: ${err.message}`, severity: 'error' });
@@ -409,24 +466,65 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 {descriptionLocked && (
                   <Chip label="Locked" size="small" color="warning" />
                 )}
+                {/* History navigation */}
+                {descriptionHistory.length > 0 && (
+                  <Box display="flex" alignItems="center" gap={0.5} ml={1}>
+                    <IconButton
+                      size="small"
+                      onClick={handleHistoryPrev}
+                      disabled={historyIndex === 0}
+                      title="Previous description"
+                    >
+                      <ChevronLeft fontSize="small" />
+                    </IconButton>
+                    <Chip
+                      icon={<History fontSize="small" />}
+                      label={`${currentHistoryPosition}/${totalHistoryItems}`}
+                      size="small"
+                      color={isViewingHistory ? 'info' : 'default'}
+                      variant={isViewingHistory ? 'filled' : 'outlined'}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={handleHistoryNext}
+                      disabled={historyIndex === null}
+                      title="Next description"
+                    >
+                      <ChevronRight fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
               </Box>
+              {isViewingHistory && (
+                <Alert severity="info" sx={{ mb: 1 }} action={
+                  <Button color="inherit" size="small" onClick={handleRestoreFromHistory}>
+                    Restore
+                  </Button>
+                }>
+                  Viewing historical description {historyIndex + 1} of {descriptionHistory.length}
+                </Alert>
+              )}
               <TextField
                 fullWidth
                 multiline
                 rows={4}
-                value={imageDescription}
+                value={displayedDescription}
                 onChange={(e) => {
-                  setImageDescription(e.target.value);
-                  setUnsavedChanges(true);
+                  if (!isViewingHistory) {
+                    setImageDescription(e.target.value);
+                    setUnsavedChanges(true);
+                  }
                 }}
                 onBlur={handleBlurSave}
                 placeholder="Describe the image to generate... (or leave empty to auto-generate)"
                 helperText="Use @EntityName to reference named entities"
+                disabled={isViewingHistory}
+                sx={isViewingHistory ? { bgcolor: 'action.hover' } : {}}
               />
               <Button
                 size="small"
                 onClick={handleGenerateDescription}
-                disabled={generatingDescription}
+                disabled={generatingDescription || isViewingHistory}
                 sx={{ mt: 1 }}
               >
                 {generatingDescription ? 'Generating...' : 'Generate Description with ChatGPT'}

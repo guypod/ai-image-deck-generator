@@ -518,6 +518,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     descriptionLocked: false,
     sceneStart,
     sceneVisualStyle: null,
+    descriptionHistory: [],
     generatedImages: []
   };
 
@@ -549,6 +550,24 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
  */
 export async function updateSlide(deckId, slideId, updates) {
   const slide = await getSlide(deckId, slideId);
+
+  // Initialize descriptionHistory if it doesn't exist (for older slides)
+  if (!slide.descriptionHistory) {
+    slide.descriptionHistory = [];
+  }
+
+  // If pushDescriptionToHistory is true and we have a current description, save it to history
+  if (updates.pushDescriptionToHistory && slide.imageDescription && slide.imageDescription.trim()) {
+    // Don't add duplicates - check if it's different from the last history entry
+    const lastHistoryEntry = slide.descriptionHistory[slide.descriptionHistory.length - 1];
+    if (lastHistoryEntry !== slide.imageDescription) {
+      slide.descriptionHistory.push(slide.imageDescription);
+      // Limit history to 20 entries
+      if (slide.descriptionHistory.length > 20) {
+        slide.descriptionHistory = slide.descriptionHistory.slice(-20);
+      }
+    }
+  }
 
   // Update allowed fields
   if (updates.speakerNotes !== undefined) slide.speakerNotes = updates.speakerNotes;

@@ -86,6 +86,9 @@ export const slideSchema = Joi.object({
     .messages({
       'string.max': 'Scene visual style must not exceed 1000 characters'
     }),
+  descriptionHistory: Joi.array()
+    .items(Joi.string().max(2000))
+    .default([]),
   generatedImages: Joi.array()
     .items(imageMetadataSchema)
     .default([])
@@ -164,7 +167,8 @@ export const updateSlideSchema = Joi.object({
     .messages({
       'number.base': 'Order must be a number',
       'number.min': 'Order must be at least 0'
-    })
+    }),
+  pushDescriptionToHistory: Joi.boolean()
 }).min(1); // At least one field must be present
 
 // Validation for reorder slides

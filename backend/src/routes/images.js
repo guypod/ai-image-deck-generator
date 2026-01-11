@@ -206,18 +206,54 @@ router.post(
     const { deckId, slideId } = req.params;
     const { imageId, prompt, count } = req.body;
 
-    // Get slide, settings, and find source image
+    // Get deck, slide, and find source image
+    const deck = await fileSystem.getDeck(deckId);
     const slide = await fileSystem.getSlide(deckId, slideId);
-    const settings = await fileSystem.getSettings();
     const sourceImage = slide.generatedImages.find(img => img.id === imageId);
 
     if (!sourceImage) {
       return res.status(404).json({ error: 'Source image not found' });
     }
 
+    // Get merged entities for parsing @references in tweak prompt
+    const mergedEntities = await fileSystem.getMergedEntities(deckId);
+    const globalEntities = await fileSystem.getGlobalEntities();
+
+    // Parse entity references in the tweak prompt
+    const { parsedText: parsedPrompt, unknownEntities } = buildFullPrompt('', prompt, mergedEntities, []);
+
+    // Get referenced entity images from the tweak prompt
+    const referencedEntities = getReferencedEntityImages(prompt, mergedEntities, deckId);
+
+    // Load entity image buffers
+    const entityImageBuffers = [];
+    for (const entity of referencedEntities) {
+      try {
+        let imagePath;
+        if (deck.entities[entity.entityName]) {
+          imagePath = fileSystem.getEntityImagePath(deckId, entity.imageFilename);
+        } else if (globalEntities[entity.entityName]) {
+          imagePath = fileSystem.getGlobalEntityImagePath(entity.imageFilename);
+        } else {
+          console.warn(`[Tweak] Entity "${entity.entityName}" not found`);
+          continue;
+        }
+        const buffer = await fs.readFile(imagePath);
+        entityImageBuffers.push({ buffer, label: entity.displayName });
+        console.log(`[Tweak] Loaded entity "${entity.entityName}": ${entity.imageFilename}`);
+      } catch (error) {
+        console.error(`[Tweak] Failed to load entity image "${entity.entityName}":`, error.message);
+      }
+    }
+
+    if (unknownEntities.length > 0) {
+      console.warn(`[Tweak] Unknown entities in prompt:`, unknownEntities);
+    }
+
+    console.log(`[Tweak] Tweaking with ${entityImageBuffers.length} entity reference(s)`);
+
     // Read source image file
     const sourceImagePath = fileSystem.getImagePath(deckId, slideId, sourceImage.filename);
-    const fs = await import('fs/promises');
     const sourceImageBuffer = await fs.readFile(sourceImagePath);
 
     // Generate tweaked images in parallel
@@ -228,21 +264,23 @@ router.post(
         if (!process.env.GEMINI_API_KEY) {
           throw new Error('GEMINI_API_KEY not configured in environment');
         }
-        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, prompt, {
+        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, parsedPrompt, {
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.FLASH,
           aspectRatio: '16:9',
-          resolution: '2K'
+          resolution: '2K',
+          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
         });
       } else if (sourceImage.service === 'gemini-pro') {
         if (!process.env.GEMINI_API_KEY) {
           throw new Error('GEMINI_API_KEY not configured in environment');
         }
-        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, prompt, {
+        imageBuffer = await geminiNanoBanana.editImage(sourceImageBuffer, parsedPrompt, {
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.PRO,
           aspectRatio: '16:9',
-          resolution: '2K'
+          resolution: '2K',
+          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
         });
       } else {
         throw new Error(`Unknown service: ${sourceImage.service}`);
@@ -270,7 +308,8 @@ router.post(
 
     res.json({
       images: successful,
-      failed: failed.length > 0 ? failed.map(r => r.error) : undefined
+      failed: failed.length > 0 ? failed.map(r => r.error) : undefined,
+      unknownEntities: unknownEntities.length > 0 ? unknownEntities : undefined
     });
   })
 );
