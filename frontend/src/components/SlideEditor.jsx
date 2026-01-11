@@ -255,17 +255,20 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       }
 
       const data = await response.json();
-      setImageDescription(data.description);
-      setHistoryIndex(null); // Reset to showing current
-      setUnsavedChanges(true);
+      const newDescription = data.description;
 
-      // Refresh to get updated history
+      // Save the new description to the backend
+      await updateSlide({ imageDescription: newDescription });
+
+      // Now refresh to get updated slide data including history
       await refresh();
-      if (slide?.descriptionHistory) {
-        setDescriptionHistory(slide.descriptionHistory);
-      }
 
-      return data.description;
+      // Update local state after refresh
+      setImageDescription(newDescription);
+      setHistoryIndex(null); // Reset to showing current
+      setUnsavedChanges(false); // Already saved
+
+      return newDescription;
     } catch (err) {
       setSnackbar({ open: true, message: `Error generating description: ${err.message}`, severity: 'error' });
       throw err;
