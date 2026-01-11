@@ -71,6 +71,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [deleteImageDialogOpen, setDeleteImageDialogOpen] = useState(false);
   const [imageToDelete, setImageToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [generatingCount, setGeneratingCount] = useState(0); // Track number of images being generated
 
   // Store current state in refs so we can access it during navigation
   const currentStateRef = React.useRef({
@@ -229,6 +230,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     }
 
     try {
+      setGeneratingCount(variantCount); // Show placeholder cards
       const result = await generateImages(variantCount, service);
       // Store the prompt that was used
       if (result.prompt) {
@@ -238,6 +240,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
       setSnackbar({ open: true, message: `Error generating images: ${err.message}`, severity: 'error' });
+    } finally {
+      setGeneratingCount(0); // Hide placeholder cards
     }
   };
 
@@ -310,12 +314,15 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     }
 
     try {
+      setGeneratingCount(tweakCount); // Show placeholder cards
+      handleCloseTweakDialog();
       await tweakImage(tweakImageId, tweakPrompt, tweakCount);
       await refresh();
       if (isEmbedded && onSlideChange) onSlideChange();
-      handleCloseTweakDialog();
     } catch (err) {
       setSnackbar({ open: true, message: `Error tweaking image: ${err.message}`, severity: 'error' });
+    } finally {
+      setGeneratingCount(0); // Hide placeholder cards
     }
   };
 
@@ -570,9 +577,17 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         <Grid item xs={12} md={6}>
           <Typography variant="h6" gutterBottom>
             Generated Images ({slide.generatedImages.length})
+            {generatingCount > 0 && (
+              <Chip
+                label={`Generating ${generatingCount}...`}
+                size="small"
+                color="primary"
+                sx={{ ml: 1, verticalAlign: 'middle' }}
+              />
+            )}
           </Typography>
 
-          {slide.generatedImages.length === 0 ? (
+          {slide.generatedImages.length === 0 && generatingCount === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <Typography color="text.secondary">
                 No images generated yet
@@ -580,6 +595,31 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
             </Paper>
           ) : (
             <Grid container spacing={2}>
+              {/* Placeholder cards for images being generated */}
+              {generatingCount > 0 && Array.from({ length: generatingCount }).map((_, index) => (
+                <Grid item xs={12} key={`generating-${index}`}>
+                  <Card sx={{ position: 'relative' }}>
+                    <Box
+                      sx={{
+                        height: 200,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'grey.100',
+                        gap: 2,
+                      }}
+                    >
+                      <CircularProgress size={48} />
+                      <Typography variant="body2" color="text.secondary">
+                        Generating image {index + 1} of {generatingCount}...
+                      </Typography>
+                    </Box>
+                  </Card>
+                </Grid>
+              ))}
+
+              {/* Existing generated images */}
               {[...slide.generatedImages]
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
                 .map((image) => (
