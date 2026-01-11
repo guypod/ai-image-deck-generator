@@ -117,7 +117,6 @@ export default function SlidePanel({
                       <Box
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        {...provided.dragHandleProps}
                       >
                         <SlideThumbnail
                           slide={slide}
@@ -128,6 +127,7 @@ export default function SlidePanel({
                           onToggleNoImages={onToggleNoImages}
                           deckId={deckId}
                           isDragging={snapshot.isDragging}
+                          dragHandleProps={provided.dragHandleProps}
                         />
                       </Box>
                     )}

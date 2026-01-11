@@ -11,6 +11,7 @@ export default function SlideThumbnail({
   onToggleNoImages,
   deckId,
   isDragging = false,
+  dragHandleProps,
 }) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -65,6 +66,7 @@ export default function SlideThumbnail({
     >
       {/* Drag Handle */}
       <Box
+        {...dragHandleProps}
         sx={{
           position: 'absolute',
           top: 4,
