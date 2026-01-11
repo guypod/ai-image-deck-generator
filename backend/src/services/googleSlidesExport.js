@@ -379,9 +379,10 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
  * @param {Object} credentials - Google OAuth credentials
  * @param {string} templateUrl - Template presentation URL
  * @param {string} title - Title for new presentation
+ * @param {number} templateSlideIndex - Slide index (1-based) in template to use as base
  * @returns {Object} - { presentationId, url }
  */
-export async function exportToGoogleSlides(deck, slides, deckId, storageDir, credentials, templateUrl, title) {
+export async function exportToGoogleSlides(deck, slides, deckId, storageDir, credentials, templateUrl, title, templateSlideIndex = 1) {
   if (!templateUrl) {
     throw new Error('Template slide URL not configured. Please add it in settings.');
   }
@@ -409,15 +410,26 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     presentationId: newPresentationId
   });
 
+  // Get the template slide to duplicate (convert 1-based index to 0-based)
+  const templateSlides = presentation.data.slides;
+  const templateSlideIndexZeroBased = templateSlideIndex - 1;
+
+  if (templateSlideIndexZeroBased < 0 || templateSlideIndexZeroBased >= templateSlides.length) {
+    throw new Error(`Template slide index ${templateSlideIndex} is out of range. Template has ${templateSlides.length} slide(s).`);
+  }
+
+  const templateSlideId = templateSlides[templateSlideIndexZeroBased].objectId;
+
   // Sort slides by order
   const sortedSlides = [...slides].sort((a, b) => a.order - b.order);
 
-  // Create new slides for each deck slide
+  // Duplicate the template slide for each deck slide
   const slideIds = [];
   for (let i = 0; i < sortedSlides.length; i++) {
     const requests = [{
-      createSlide: {
-        insertionIndex: i
+      duplicateObject: {
+        objectId: templateSlideId,
+        objectIds: {}
       }
     }];
 
@@ -426,7 +438,7 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
       requestBody: { requests }
     });
 
-    slideIds.push(response.data.replies[0].createSlide.objectId);
+    slideIds.push(response.data.replies[0].duplicateObject.objectId);
   }
 
   // Process each slide

@@ -26,6 +26,7 @@ export default function Settings() {
   const [defaultService, setDefaultService] = useState('gemini-pro');
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
   const [googleSlidesTemplateUrl, setGoogleSlidesTemplateUrl] = useState('');
+  const [googleSlidesTemplateIndex, setGoogleSlidesTemplateIndex] = useState(1);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function Settings() {
       setDefaultService(settings.defaultService);
       setDefaultVariantCount(settings.defaultVariantCount);
       setGoogleSlidesTemplateUrl(settings.googleSlides?.templateSlideUrl || '');
+      setGoogleSlidesTemplateIndex(settings.googleSlides?.templateSlideIndex || 1);
     }
   }, [settings]);
 
@@ -43,6 +45,7 @@ export default function Settings() {
         defaultService,
         defaultVariantCount,
         googleSlidesTemplateUrl: googleSlidesTemplateUrl || null,
+        googleSlidesTemplateIndex: googleSlidesTemplateIndex || 1,
       });
       alert('Settings saved successfully');
     } catch (err) {
@@ -166,6 +169,18 @@ export default function Settings() {
           onChange={(e) => setGoogleSlidesTemplateUrl(e.target.value)}
           placeholder="https://docs.google.com/presentation/d/..."
           helperText="Paste a link to your Google Slides template. Make sure it's shared with anyone who has the link."
+          sx={{ mb: 2 }}
+        />
+
+        <TextField
+          fullWidth
+          type="number"
+          label="Template Slide Index"
+          value={googleSlidesTemplateIndex}
+          onChange={(e) => setGoogleSlidesTemplateIndex(parseInt(e.target.value) || 1)}
+          placeholder="1"
+          helperText="Which slide number in the template to use as the base (1 = first slide, 2 = second slide, etc.)"
+          inputProps={{ min: 1 }}
           sx={{ mb: 2 }}
         />
 

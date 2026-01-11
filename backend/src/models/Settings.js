@@ -44,8 +44,17 @@ export const settingsSchema = Joi.object({
       .default(null)
       .messages({
         'string.uri': 'Template slide URL must be a valid URL'
+      }),
+    templateSlideIndex: Joi.number()
+      .integer()
+      .min(1)
+      .default(1)
+      .messages({
+        'number.base': 'Template slide index must be a number',
+        'number.integer': 'Template slide index must be an integer',
+        'number.min': 'Template slide index must be at least 1'
       })
-  }).default({ credentials: null, templateSlideUrl: null })
+  }).default({ credentials: null, templateSlideUrl: null, templateSlideIndex: 1 })
 });
 
 // Validation for updating settings
@@ -69,6 +78,14 @@ export const updateSettingsSchema = Joi.object({
     .allow('', null)
     .messages({
       'string.uri': 'Template slide URL must be a valid URL'
+    }),
+  googleSlidesTemplateIndex: Joi.number()
+    .integer()
+    .min(1)
+    .messages({
+      'number.base': 'Template slide index must be a number',
+      'number.integer': 'Template slide index must be an integer',
+      'number.min': 'Template slide index must be at least 1'
     })
 }).min(1); // At least one field must be present
 
@@ -93,7 +110,8 @@ export function maskSettings(settings) {
     googleSlides: {
       connected: !!settings.googleSlides?.credentials,
       email: settings.googleSlides?.credentials?.email || null,
-      templateSlideUrl: settings.googleSlides?.templateSlideUrl || null
+      templateSlideUrl: settings.googleSlides?.templateSlideUrl || null,
+      templateSlideIndex: settings.googleSlides?.templateSlideIndex || 1
     }
   };
 }

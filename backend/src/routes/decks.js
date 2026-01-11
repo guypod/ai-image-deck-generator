@@ -370,7 +370,8 @@ router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (r
     storageDir,
     credentials,
     settings.googleSlides.templateSlideUrl,
-    exportTitle
+    exportTitle,
+    settings.googleSlides.templateSlideIndex || 1
   );
 
   res.json({

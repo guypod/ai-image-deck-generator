@@ -36,9 +36,16 @@ router.put('/', validate(updateSettingsSchema), asyncHandler(async (req, res) =>
 
   if (req.body.googleSlidesTemplateUrl !== undefined) {
     if (!updates.googleSlides) {
-      updates.googleSlides = { credentials: null, templateSlideUrl: null };
+      updates.googleSlides = { credentials: null, templateSlideUrl: null, templateSlideIndex: 1 };
     }
     updates.googleSlides.templateSlideUrl = req.body.googleSlidesTemplateUrl || null;
+  }
+
+  if (req.body.googleSlidesTemplateIndex !== undefined) {
+    if (!updates.googleSlides) {
+      updates.googleSlides = { credentials: null, templateSlideUrl: null, templateSlideIndex: 1 };
+    }
+    updates.googleSlides.templateSlideIndex = req.body.googleSlidesTemplateIndex || 1;
   }
 
   const savedSettings = await fileSystem.saveSettings(updates);
