@@ -19,6 +19,8 @@ import {
   Alert,
   Menu,
   MenuItem,
+  Snackbar,
+  DialogContentText,
 } from '@mui/material';
 import { Add, Delete, Edit, ArrowDropDown } from '@mui/icons-material';
 import { useDecks } from '../hooks/useDecks';
@@ -29,10 +31,13 @@ export default function DeckList() {
   const { decks, loading, error, createDeck, deleteDeck, refresh } = useDecks();
   const [openDialog, setOpenDialog] = useState(false);
   const [openTextDialog, setOpenTextDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deckToDelete, setDeckToDelete] = useState(null);
   const [deckName, setDeckName] = useState('');
   const [textContent, setTextContent] = useState('');
   const [creating, setCreating] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const handleCreate = async () => {
     if (!deckName.trim()) return;
@@ -44,7 +49,7 @@ export default function DeckList() {
       setDeckName('');
       navigate(`/decks/${newDeck.id}/edit`);
     } catch (err) {
-      alert(`Error creating deck: ${err.message}`);
+      setSnackbar({ open: true, message: `Error creating deck: ${err.message}`, severity: 'error' });
     } finally {
       setCreating(false);
     }
@@ -66,21 +71,35 @@ export default function DeckList() {
       await refresh();
       navigate(`/decks/${response.data.deck.id}/edit`);
     } catch (err) {
-      alert(`Error creating deck from text: ${err.message}`);
+      setSnackbar({ open: true, message: `Error creating deck from text: ${err.message}`, severity: 'error' });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDelete = async (e, deckId, deckName) => {
-    e.stopPropagation(); // Prevent any parent handlers
-    if (!confirm(`Delete deck "${deckName}"? This cannot be undone.`)) return;
+  const handleDeleteClick = (e, deckId, deckName) => {
+    e.stopPropagation();
+    setDeckToDelete({ id: deckId, name: deckName });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deckToDelete) return;
 
     try {
-      await deleteDeck(deckId);
+      await deleteDeck(deckToDelete.id);
+      setSnackbar({ open: true, message: 'Deck deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error deleting deck: ${err.message}`);
+      setSnackbar({ open: true, message: `Error deleting deck: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeckToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setDeckToDelete(null);
   };
 
   if (loading) {
@@ -170,7 +189,7 @@ export default function DeckList() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={(e) => handleDelete(e, deck.id, deck.name)}
+                    onClick={(e) => handleDeleteClick(e, deck.id, deck.name)}
                   >
                     <Delete />
                   </IconButton>
@@ -255,6 +274,42 @@ export default function DeckList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Deck?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{deckToDelete?.name}"? This action cannot be undone.
+            All slides and generated images will be permanently deleted.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
