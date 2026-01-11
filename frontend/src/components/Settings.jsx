@@ -13,6 +13,7 @@ import {
   CircularProgress,
   Alert,
   Divider,
+  TextField,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useSettings } from '../hooks/useSettings';
@@ -24,12 +25,14 @@ export default function Settings() {
 
   const [defaultService, setDefaultService] = useState('gemini-pro');
   const [defaultVariantCount, setDefaultVariantCount] = useState(2);
+  const [googleSlidesTemplateUrl, setGoogleSlidesTemplateUrl] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (settings) {
       setDefaultService(settings.defaultService);
       setDefaultVariantCount(settings.defaultVariantCount);
+      setGoogleSlidesTemplateUrl(settings.googleSlides?.templateSlideUrl || '');
     }
   }, [settings]);
 
@@ -39,6 +42,7 @@ export default function Settings() {
       await updateSettings({
         defaultService,
         defaultVariantCount,
+        googleSlidesTemplateUrl: googleSlidesTemplateUrl || null,
       });
       alert('Settings saved successfully');
     } catch (err) {
@@ -152,8 +156,39 @@ export default function Settings() {
           Google Slides Export
         </Typography>
         <Typography variant="body2" color="text.secondary" paragraph>
-          Google Slides export feature coming soon. You'll be able to export your decks directly to Google Slides.
+          Configure the template slide for Google Slides export. The template will be duplicated and your slides will be added to it.
         </Typography>
+
+        <TextField
+          fullWidth
+          label="Template Slide URL"
+          value={googleSlidesTemplateUrl}
+          onChange={(e) => setGoogleSlidesTemplateUrl(e.target.value)}
+          placeholder="https://docs.google.com/presentation/d/..."
+          helperText="Paste a link to your Google Slides template. Make sure it's shared with anyone who has the link."
+          sx={{ mb: 2 }}
+        />
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>To set up Google Slides export:</strong>
+            <ol style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+              <li>Create a Google Slides presentation to use as a template</li>
+              <li>Share it with "Anyone with the link can view"</li>
+              <li>Copy the presentation URL and paste it above</li>
+              <li>Click "Save Settings" below</li>
+            </ol>
+          </Typography>
+        </Alert>
+
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
       </Paper>
     </Container>
   );

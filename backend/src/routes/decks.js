@@ -3,10 +3,12 @@ import multer from 'multer';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { createDeckSchema, updateDeckSchema, addEntitySchema, entityNameSchema, createDeckFromTextSchema } from '../models/Deck.js';
+import { exportDeckSchema } from '../models/Settings.js';
 import * as fileSystem from '../services/fileSystem.js';
 import { parseTextToSlides } from '../utils/textParser.js';
 import * as openaiDescriptions from '../services/openaiDescriptions.js';
 import { executeInParallel } from '../utils/asyncPool.js';
+import { exportToGoogleSlides } from '../services/googleSlidesExport.js';
 
 const router = express.Router();
 
@@ -325,6 +327,56 @@ router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) =>
     failed,
     skipped: slides.length - unlockedSlides.length,
     results: formattedResults
+  });
+}));
+
+/**
+ * POST /api/decks/:deckId/export
+ * Export deck to Google Slides
+ */
+router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (req, res) => {
+  const { deckId } = req.params;
+  const { title } = req.body;
+
+  // Get settings
+  const settings = await fileSystem.getSettings();
+
+  if (!settings.googleSlides?.templateSlideUrl) {
+    return res.status(400).json({
+      error: 'Template slide URL not configured. Please add it in settings.'
+    });
+  }
+
+  // Check if credentials are configured
+  // For now, we'll use application default credentials or service account
+  // Instead of requiring OAuth
+  const credentials = settings.googleSlides?.credentials || null;
+
+  // Get deck and slides
+  const deck = await fileSystem.getDeck(deckId);
+  const slides = await fileSystem.getSlides(deckId);
+
+  // Use deck name as title if not provided
+  const exportTitle = title || deck.name;
+
+  // Get storage directory
+  const storageDir = fileSystem.getStorageDir();
+
+  // Export to Google Slides
+  const result = await exportToGoogleSlides(
+    deck,
+    slides,
+    deckId,
+    storageDir,
+    credentials,
+    settings.googleSlides.templateSlideUrl,
+    exportTitle
+  );
+
+  res.json({
+    success: true,
+    presentationId: result.presentationId,
+    url: result.url
   });
 }));
 

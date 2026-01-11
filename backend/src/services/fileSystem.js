@@ -4,7 +4,7 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
 // Storage directory - call function each time to ensure env vars are loaded
-function getStorageDir() {
+export function getStorageDir() {
   const storageEnv = process.env.STORAGE_PATH;
   if (storageEnv && storageEnv.startsWith('~')) {
     // Replace ~ with home directory
@@ -800,6 +800,7 @@ export async function saveSettings(settings) {
 
 export default {
   initStorage,
+  getStorageDir,
   getAllDecks,
   getDeck,
   createDeck,

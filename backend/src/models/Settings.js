@@ -37,8 +37,15 @@ export const settingsSchema = Joi.object({
       'any.required': 'Default variant count is required'
     }),
   googleSlides: Joi.object({
-    credentials: googleCredentialsSchema
-  }).default({ credentials: null })
+    credentials: googleCredentialsSchema,
+    templateSlideUrl: Joi.string()
+      .uri()
+      .allow('', null)
+      .default(null)
+      .messages({
+        'string.uri': 'Template slide URL must be a valid URL'
+      })
+  }).default({ credentials: null, templateSlideUrl: null })
 });
 
 // Validation for updating settings
@@ -56,6 +63,12 @@ export const updateSettingsSchema = Joi.object({
       'number.base': 'Default variant count must be a number',
       'number.min': 'Default variant count must be at least 1',
       'number.max': 'Default variant count must not exceed 10'
+    }),
+  googleSlidesTemplateUrl: Joi.string()
+    .uri()
+    .allow('', null)
+    .messages({
+      'string.uri': 'Template slide URL must be a valid URL'
     })
 }).min(1); // At least one field must be present
 
@@ -79,7 +92,8 @@ export function maskSettings(settings) {
     ...settings,
     googleSlides: {
       connected: !!settings.googleSlides?.credentials,
-      email: settings.googleSlides?.credentials?.email || null
+      email: settings.googleSlides?.credentials?.email || null,
+      templateSlideUrl: settings.googleSlides?.templateSlideUrl || null
     }
   };
 }

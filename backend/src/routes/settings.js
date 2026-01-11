@@ -34,6 +34,13 @@ router.put('/', validate(updateSettingsSchema), asyncHandler(async (req, res) =>
     updates.defaultVariantCount = req.body.defaultVariantCount;
   }
 
+  if (req.body.googleSlidesTemplateUrl !== undefined) {
+    if (!updates.googleSlides) {
+      updates.googleSlides = { credentials: null, templateSlideUrl: null };
+    }
+    updates.googleSlides.templateSlideUrl = req.body.googleSlidesTemplateUrl || null;
+  }
+
   const savedSettings = await fileSystem.saveSettings(updates);
   const maskedSettings = maskSettings(savedSettings);
   res.json(maskedSettings);
@@ -57,10 +64,77 @@ router.get('/auth/google', asyncHandler(async (req, res) => {
  * Google OAuth callback
  */
 router.get('/auth/google/callback', asyncHandler(async (req, res) => {
-  // TODO: Implement OAuth callback
-  res.status(501).json({
-    error: 'Google OAuth not yet implemented'
-  });
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).send('<h1>Error: No authorization code received</h1>');
+  }
+
+  try {
+    const { google } = await import('googleapis');
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+
+    // Return HTML page with the tokens
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google OAuth Success</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          h1 { color: #4CAF50; }
+          .token-box { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .token { word-break: break-all; font-family: monospace; font-size: 12px; }
+          .copy-btn { background: #4CAF50; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 3px; }
+          .copy-btn:hover { background: #45a049; }
+          .instruction { background: #e3f2fd; padding: 15px; border-left: 4px solid #2196F3; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>✓ Authorization Successful!</h1>
+
+        <div class="instruction">
+          <strong>Next Steps:</strong>
+          <ol>
+            <li>Copy the refresh token below</li>
+            <li>Add it to your <code>backend/.env</code> file as <code>GOOGLE_REFRESH_TOKEN</code></li>
+            <li>Restart your backend server</li>
+            <li>You can now export decks to Google Slides!</li>
+          </ol>
+        </div>
+
+        <div class="token-box">
+          <strong>GOOGLE_REFRESH_TOKEN:</strong><br>
+          <div class="token" id="refreshToken">${tokens.refresh_token}</div>
+          <button class="copy-btn" onclick="copyToken()">Copy to Clipboard</button>
+        </div>
+
+        <p><em>You can close this window now.</em></p>
+
+        <script>
+          function copyToken() {
+            const token = document.getElementById('refreshToken').textContent;
+            navigator.clipboard.writeText(token).then(() => {
+              alert('Refresh token copied to clipboard!');
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.status(500).send(`
+      <h1>Error</h1>
+      <p>${error.message}</p>
+    `);
+  }
 }));
 
 /**

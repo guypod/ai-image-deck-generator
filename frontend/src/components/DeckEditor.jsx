@@ -17,8 +17,14 @@ import {
   Checkbox,
   FormControlLabel,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Snackbar,
 } from '@mui/material';
-import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close } from '@mui/icons-material';
+import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close, CloudUpload } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
 import { slideAPI } from '../services/api';
@@ -37,6 +43,9 @@ export default function DeckEditor() {
   const [isTest, setIsTest] = useState(false);
   const [regeneratingDescriptions, setRegeneratingDescriptions] = useState(false);
   const [generatingImages, setGeneratingImages] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   React.useEffect(() => {
     if (deck) {
@@ -166,6 +175,45 @@ export default function DeckEditor() {
     } finally {
       setGeneratingImages(false);
     }
+  };
+
+  const handleExportClick = () => {
+    setExportDialogOpen(true);
+  };
+
+  const handleExportConfirm = async () => {
+    setExportDialogOpen(false);
+    setExporting(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/decks/${deckId}/export`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: deck.name })
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to export to Google Slides');
+      }
+
+      const data = await response.json();
+
+      // Open the new presentation in a new tab
+      window.open(data.url, '_blank');
+
+      setSnackbar({ open: true, message: 'Successfully exported to Google Slides!', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCancel = () => {
+    setExportDialogOpen(false);
   };
 
   if (deckLoading) {
@@ -323,9 +371,18 @@ export default function DeckEditor() {
           >
             {generatingImages ? 'Generating...' : 'Generate All Images'}
           </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleExportClick}
+            disabled={exporting}
+            startIcon={exporting ? <CircularProgress size={20} /> : <CloudUpload />}
+          >
+            {exporting ? 'Exporting...' : 'Export to Google Slides'}
+          </Button>
         </Box>
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          Regenerate descriptions skips locked descriptions. Generate images skips "no images" slides.
+          Regenerate descriptions skips locked descriptions. Generate images skips "no images" slides. Export creates a new Google Slides presentation from this deck.
         </Typography>
       </Paper>
 
@@ -419,6 +476,49 @@ export default function DeckEditor() {
           ))}
         </Grid>
       )}
+
+      {/* Export Confirmation Dialog */}
+      <Dialog
+        open={exportDialogOpen}
+        onClose={handleExportCancel}
+        aria-labelledby="export-dialog-title"
+        aria-describedby="export-dialog-description"
+      >
+        <DialogTitle id="export-dialog-title">
+          Export to Google Slides
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="export-dialog-description">
+            This will create a new presentation in your Google account with all slides from this deck.
+            Slides with images will show the pinned image as a full-slide image. Slides without images
+            will show the speaker notes as centered text.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleExportCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleExportConfirm} variant="contained" color="success" autoFocus>
+            Export
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
