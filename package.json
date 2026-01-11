@@ -36,5 +36,8 @@
     "imagen"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pptx-automizer": "^0.8.1"
+  }
 }

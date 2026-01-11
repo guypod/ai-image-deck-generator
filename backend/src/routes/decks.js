@@ -454,6 +454,9 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
   const { deckId } = req.params;
   const { title, fromSlideIndex = 0 } = req.body;
 
+  // Get settings for template configuration
+  const settings = await fileSystem.getSettings();
+
   // Get deck and slides
   const deck = await fileSystem.getDeck(deckId);
   const slides = await fileSystem.getSlides(deckId);
@@ -466,14 +469,19 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
 
   console.log(`Starting PowerPoint export for deck ${deckId}...`);
 
-  // Export to PowerPoint buffer
+  // Export to PowerPoint buffer (use Google Slides template if configured)
   const result = await exportToPowerPointBuffer(
     deck,
     slides,
     deckId,
     storageDir,
     exportTitle,
-    { fromSlideIndex }
+    {
+      fromSlideIndex,
+      templateUrl: settings.googleSlides?.templateSlideUrl || null,
+      templateSlideIndex: settings.googleSlides?.templateSlideIndex || 1,
+      credentials: settings.googleSlides?.credentials || null
+    }
   );
 
   // Set headers for file download
