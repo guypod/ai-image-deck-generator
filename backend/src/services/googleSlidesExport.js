@@ -423,22 +423,37 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
   // Sort slides by order
   const sortedSlides = [...slides].sort((a, b) => a.order - b.order);
 
-  // Duplicate the template slide for each deck slide
+  // Duplicate the template slide for each deck slide and insert at the top
   const slideIds = [];
   for (let i = 0; i < sortedSlides.length; i++) {
-    const requests = [{
-      duplicateObject: {
-        objectId: templateSlideId,
-        objectIds: {}
-      }
-    }];
-
-    const response = await slidesClient.presentations.batchUpdate({
+    // Duplicate the slide
+    const duplicateResponse = await slidesClient.presentations.batchUpdate({
       presentationId: newPresentationId,
-      requestBody: { requests }
+      requestBody: {
+        requests: [{
+          duplicateObject: {
+            objectId: templateSlideId,
+            objectIds: {}
+          }
+        }]
+      }
     });
 
-    slideIds.push(response.data.replies[0].duplicateObject.objectId);
+    const newSlideId = duplicateResponse.data.replies[0].duplicateObject.objectId;
+    slideIds.push(newSlideId);
+
+    // Move the duplicated slide to position i (at the beginning)
+    await slidesClient.presentations.batchUpdate({
+      presentationId: newPresentationId,
+      requestBody: {
+        requests: [{
+          updateSlidesPosition: {
+            slideObjectIds: [newSlideId],
+            insertionIndex: i
+          }
+        }]
+      }
+    });
   }
 
   // Process each slide
