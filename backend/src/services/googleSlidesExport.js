@@ -605,7 +605,7 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     console.log(`Processing slide ${i + 1}/${slidesToExport.length}: ${slide.id}`);
 
     // Determine if slide should have image
-    const shouldHaveImage = !slide.noImages && !slide.sceneStart;
+    const shouldHaveImage = !slide.noImages;
     const pinnedImage = slide.generatedImages?.find(img => img.isPinned);
     const hasImage = shouldHaveImage && pinnedImage;
 

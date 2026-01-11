@@ -54,7 +54,7 @@ export async function exportToPowerPoint(deck, slides, deckId, storageDir, title
     const slide = pptx.addSlide();
 
     // Determine if slide should have image
-    const shouldHaveImage = !slideData.noImages && !slideData.sceneStart;
+    const shouldHaveImage = !slideData.noImages;
     const pinnedImage = slideData.generatedImages?.find(img => img.isPinned);
     const hasImage = shouldHaveImage && pinnedImage;
 
@@ -180,7 +180,7 @@ export async function exportToPowerPointBuffer(deck, slides, deckId, storageDir,
     const slide = pptx.addSlide();
 
     // Determine if slide should have image
-    const shouldHaveImage = !slideData.noImages && !slideData.sceneStart;
+    const shouldHaveImage = !slideData.noImages;
     const pinnedImage = slideData.generatedImages?.find(img => img.isPinned);
     const hasImage = shouldHaveImage && pinnedImage;
 
