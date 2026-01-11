@@ -15,6 +15,8 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  DialogContentText,
+  Snackbar,
 } from '@mui/material';
 import { Add, Delete, CloudUpload } from '@mui/icons-material';
 import { useGlobalEntities } from '../hooks/useGlobalEntities';
@@ -24,11 +26,14 @@ export default function GlobalEntityManager() {
   const { entities, loading, addEntity, removeEntity } = useGlobalEntities();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState(null);
   const [entityName, setEntityName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -78,16 +83,28 @@ export default function GlobalEntityManager() {
     }
   };
 
-  const handleDeleteEntity = async (entityName) => {
-    if (!confirm(`Delete global entity "${entityName}"? This will affect all decks using this entity. This cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteClick = (entityName) => {
+    setEntityToDelete(entityName);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!entityToDelete) return;
 
     try {
-      await removeEntity(entityName);
+      await removeEntity(entityToDelete);
+      setSnackbar({ open: true, message: 'Global entity deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEntityToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setEntityToDelete(null);
   };
 
   const entityList = Object.entries(entities || {});
@@ -141,7 +158,7 @@ export default function GlobalEntityManager() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteEntity(name)}
+                    onClick={() => handleDeleteClick(name)}
                   >
                     <Delete />
                   </IconButton>
@@ -225,6 +242,41 @@ export default function GlobalEntityManager() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Global Entity?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{entityToDelete}"? This will affect all decks using this entity. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

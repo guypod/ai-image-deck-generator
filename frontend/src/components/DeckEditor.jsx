@@ -45,6 +45,10 @@ export default function DeckEditor() {
   const [generatingImages, setGeneratingImages] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [deleteSlideDialogOpen, setDeleteSlideDialogOpen] = useState(false);
+  const [slideToDelete, setSlideToDelete] = useState(null);
+  const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
+  const [generateAllDialogOpen, setGenerateAllDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   React.useEffect(() => {
@@ -64,7 +68,7 @@ export default function DeckEditor() {
       await updateDeck({ name });
       setEditingName(false);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -73,7 +77,7 @@ export default function DeckEditor() {
       await updateDeck({ visualStyle });
       setEditingStyle(false);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -82,7 +86,7 @@ export default function DeckEditor() {
       await updateDeck({ isTest: newIsTest });
       setIsTest(newIsTest);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -94,32 +98,48 @@ export default function DeckEditor() {
       });
       navigate(`/decks/${deckId}/slides/${slide.id}`);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
-  const handleDeleteSlide = async (slideId) => {
-    if (!confirm('Delete this slide?')) return;
+  const handleDeleteSlideClick = (slideId) => {
+    setSlideToDelete(slideId);
+    setDeleteSlideDialogOpen(true);
+  };
+
+  const handleDeleteSlideConfirm = async () => {
+    if (!slideToDelete) return;
+
     try {
-      await deleteSlide(slideId);
+      await deleteSlide(slideToDelete);
+      setSnackbar({ open: true, message: 'Slide deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteSlideDialogOpen(false);
+      setSlideToDelete(null);
     }
+  };
+
+  const handleDeleteSlideCancel = () => {
+    setDeleteSlideDialogOpen(false);
+    setSlideToDelete(null);
   };
 
   const handleToggleNoImages = async (slideId, currentValue) => {
     try {
       await updateSlide(slideId, { noImages: !currentValue });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
-  const handleRegenerateDescriptions = async () => {
-    if (!confirm('Regenerate all unlocked slide descriptions? This will overwrite existing descriptions that are not locked.')) {
-      return;
-    }
+  const handleRegenerateDescriptionsClick = () => {
+    setRegenerateDialogOpen(true);
+  };
 
+  const handleRegenerateDescriptionsConfirm = async () => {
+    setRegenerateDialogOpen(false);
     setRegeneratingDescriptions(true);
     try {
       const response = await fetch(
@@ -133,22 +153,23 @@ export default function DeckEditor() {
       }
 
       const data = await response.json();
-      alert(`Successfully regenerated ${data.regenerated} description(s). ${data.skipped} locked, ${data.failed} failed.`);
+      setSnackbar({ open: true, message: `Successfully regenerated ${data.regenerated} description(s). ${data.skipped} locked, ${data.failed} failed.`, severity: 'success' });
 
       // Refresh slides to show new descriptions
       window.location.reload();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
       setRegeneratingDescriptions(false);
     }
   };
 
-  const handleGenerateAllImages = async () => {
-    if (!confirm('Generate images for all slides (excluding "no images" slides)? This may take several minutes.')) {
-      return;
-    }
+  const handleGenerateAllImagesClick = () => {
+    setGenerateAllDialogOpen(true);
+  };
 
+  const handleGenerateAllImagesConfirm = async () => {
+    setGenerateAllDialogOpen(false);
     setGeneratingImages(true);
     try {
       const response = await fetch(
@@ -166,12 +187,12 @@ export default function DeckEditor() {
       }
 
       const data = await response.json();
-      alert(`Image generation started! Job ID: ${data.jobId}. This will take several minutes.`);
+      setSnackbar({ open: true, message: `Image generation started! Job ID: ${data.jobId}. This will take several minutes.`, severity: 'info' });
 
       // Optionally navigate to slide view to see progress
       // navigate(`/decks/${deckId}/slides`);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
       setGeneratingImages(false);
     }
@@ -357,7 +378,7 @@ export default function DeckEditor() {
         <Box display="flex" gap={2} flexWrap="wrap">
           <Button
             variant="outlined"
-            onClick={handleRegenerateDescriptions}
+            onClick={handleRegenerateDescriptionsClick}
             disabled={regeneratingDescriptions}
             startIcon={regeneratingDescriptions ? <CircularProgress size={20} /> : null}
           >
@@ -365,7 +386,7 @@ export default function DeckEditor() {
           </Button>
           <Button
             variant="outlined"
-            onClick={handleGenerateAllImages}
+            onClick={handleGenerateAllImagesClick}
             disabled={generatingImages}
             startIcon={generatingImages ? <CircularProgress size={20} /> : null}
           >
@@ -466,7 +487,7 @@ export default function DeckEditor() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteSlide(slide.id)}
+                    onClick={() => handleDeleteSlideClick(slide.id)}
                   >
                     <Delete />
                   </IconButton>
@@ -476,6 +497,63 @@ export default function DeckEditor() {
           ))}
         </Grid>
       )}
+
+      {/* Delete Slide Confirmation Dialog */}
+      <Dialog
+        open={deleteSlideDialogOpen}
+        onClose={handleDeleteSlideCancel}
+      >
+        <DialogTitle>Delete Slide?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this slide? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteSlideCancel}>Cancel</Button>
+          <Button onClick={handleDeleteSlideConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Regenerate Descriptions Confirmation Dialog */}
+      <Dialog
+        open={regenerateDialogOpen}
+        onClose={() => setRegenerateDialogOpen(false)}
+      >
+        <DialogTitle>Regenerate Descriptions?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Regenerate all unlocked slide descriptions? This will overwrite existing descriptions that are not locked.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRegenerateDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleRegenerateDescriptionsConfirm} variant="contained">
+            Regenerate
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Generate All Images Confirmation Dialog */}
+      <Dialog
+        open={generateAllDialogOpen}
+        onClose={() => setGenerateAllDialogOpen(false)}
+      >
+        <DialogTitle>Generate All Images?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Generate images for all slides (excluding "no images" slides)? This may take several minutes.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGenerateAllDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleGenerateAllImagesConfirm} variant="contained">
+            Generate
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Export Confirmation Dialog */}
       <Dialog

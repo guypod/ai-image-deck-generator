@@ -15,16 +15,21 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  DialogContentText,
+  Snackbar,
 } from '@mui/material';
 import { Add, Delete, CloudUpload } from '@mui/icons-material';
 
 export default function EntityManager({ deckId, entities, onUpdate }) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState(null);
   const [entityName, setEntityName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -89,14 +94,17 @@ export default function EntityManager({ deckId, entities, onUpdate }) {
     }
   };
 
-  const handleDeleteEntity = async (entityName) => {
-    if (!confirm(`Delete entity "${entityName}"? This cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteClick = (entityName) => {
+    setEntityToDelete(entityName);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!entityToDelete) return;
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/decks/${deckId}/entities/${entityName}`,
+        `http://localhost:3001/api/decks/${deckId}/entities/${entityToDelete}`,
         { method: 'DELETE' }
       );
 
@@ -107,9 +115,18 @@ export default function EntityManager({ deckId, entities, onUpdate }) {
 
       await response.json();
       onUpdate();
+      setSnackbar({ open: true, message: 'Entity deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEntityToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setEntityToDelete(null);
   };
 
   const entityList = Object.entries(entities || {});
@@ -158,7 +175,7 @@ export default function EntityManager({ deckId, entities, onUpdate }) {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteEntity(name)}
+                    onClick={() => handleDeleteClick(name)}
                   >
                     <Delete />
                   </IconButton>
@@ -242,6 +259,41 @@ export default function EntityManager({ deckId, entities, onUpdate }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Entity?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{entityToDelete}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

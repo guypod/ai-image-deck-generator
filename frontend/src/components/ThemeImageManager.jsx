@@ -13,15 +13,20 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  DialogContentText,
+  Snackbar,
 } from '@mui/material';
 import { Add, Delete, CloudUpload } from '@mui/icons-material';
 
 export default function ThemeImageManager({ deckId, themeImages, onUpdate }) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -78,14 +83,17 @@ export default function ThemeImageManager({ deckId, themeImages, onUpdate }) {
     }
   };
 
-  const handleDeleteThemeImage = async (filename) => {
-    if (!confirm('Delete this theme image? This will affect the tone of all generated images.')) {
-      return;
-    }
+  const handleDeleteClick = (filename) => {
+    setImageToDelete(filename);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!imageToDelete) return;
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/decks/${deckId}/theme-images/${filename}`,
+        `http://localhost:3001/api/decks/${deckId}/theme-images/${imageToDelete}`,
         { method: 'DELETE' }
       );
 
@@ -96,9 +104,18 @@ export default function ThemeImageManager({ deckId, themeImages, onUpdate }) {
 
       await response.json();
       onUpdate();
+      setSnackbar({ open: true, message: 'Theme image deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteDialogOpen(false);
+      setImageToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setImageToDelete(null);
   };
 
   const imageList = themeImages || [];
@@ -147,7 +164,7 @@ export default function ThemeImageManager({ deckId, themeImages, onUpdate }) {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteThemeImage(filename)}
+                    onClick={() => handleDeleteClick(filename)}
                   >
                     <Delete />
                   </IconButton>
@@ -222,6 +239,41 @@ export default function ThemeImageManager({ deckId, themeImages, onUpdate }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Theme Image?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this theme image? This will affect the tone of all generated images. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

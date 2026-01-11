@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Snackbar,
 } from '@mui/material';
 import { ArrowBack, Settings as SettingsIcon } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
@@ -33,6 +34,7 @@ export default function SlideDeckView() {
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [slideToDelete, setSlideToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Sync local slides with hook slides
   useEffect(() => {
@@ -74,7 +76,7 @@ export default function SlideDeckView() {
       setSelectedSlideId(newSlide.id);
       setSearchParams({ slide: newSlide.id });
     } catch (error) {
-      alert(`Error creating slide: ${error.message}`);
+      setSnackbar({ open: true, message: `Error creating slide: ${error.message}`, severity: 'error' });
     }
   };
 
@@ -110,7 +112,7 @@ export default function SlideDeckView() {
         setSearchParams({});
       }
     } catch (error) {
-      alert(`Error deleting slide: ${error.message}`);
+      setSnackbar({ open: true, message: `Error deleting slide: ${error.message}`, severity: 'error' });
       setDeleteConfirmOpen(false);
       setSlideToDelete(null);
     }
@@ -126,7 +128,7 @@ export default function SlideDeckView() {
     try {
       await reorderSlides(newSlideIds);
     } catch (error) {
-      alert(`Error reordering slides: ${error.message}`);
+      setSnackbar({ open: true, message: `Error reordering slides: ${error.message}`, severity: 'error' });
       // The useSlides hook will refresh and show the old order
     }
   };
@@ -154,7 +156,7 @@ export default function SlideDeckView() {
             : slide
         )
       );
-      alert(`Error updating slide: ${error.message}`);
+      setSnackbar({ open: true, message: `Error updating slide: ${error.message}`, severity: 'error' });
     }
   };
 
@@ -299,6 +301,22 @@ export default function SlideDeckView() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

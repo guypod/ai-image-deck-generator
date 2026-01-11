@@ -25,7 +25,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
+  Snackbar,
 } from '@mui/material';
 import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen, Close } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
@@ -66,6 +68,9 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [tweakPrompt, setTweakPrompt] = useState('');
   const [tweakCount, setTweakCount] = useState(2);
   const [viewImageId, setViewImageId] = useState(null);
+  const [deleteImageDialogOpen, setDeleteImageDialogOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Store current state in refs so we can access it during navigation
   const currentStateRef = React.useRef({
@@ -170,7 +175,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       });
       setUnsavedChanges(false);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -197,7 +202,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setUnsavedChanges(true);
       return data.description;
     } catch (err) {
-      alert(`Error generating description: ${err.message}`);
+      setSnackbar({ open: true, message: `Error generating description: ${err.message}`, severity: 'error' });
       throw err;
     } finally {
       setGeneratingDescription(false);
@@ -232,7 +237,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       await refresh();
       if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
-      alert(`Error generating images: ${err.message}`);
+      setSnackbar({ open: true, message: `Error generating images: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -241,18 +246,33 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       await pinImage(imageId);
       if (isEmbedded && onSlideChange) onSlideChange();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
-  const handleDeleteImage = async (imageId) => {
-    if (!confirm('Delete this image?')) return;
+  const handleDeleteImageClick = (imageId) => {
+    setImageToDelete(imageId);
+    setDeleteImageDialogOpen(true);
+  };
+
+  const handleDeleteImageConfirm = async () => {
+    if (!imageToDelete) return;
+
     try {
-      await deleteImage(imageId);
+      await deleteImage(imageToDelete);
       if (isEmbedded && onSlideChange) onSlideChange();
+      setSnackbar({ open: true, message: 'Image deleted successfully', severity: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    } finally {
+      setDeleteImageDialogOpen(false);
+      setImageToDelete(null);
     }
+  };
+
+  const handleDeleteImageCancel = () => {
+    setDeleteImageDialogOpen(false);
+    setImageToDelete(null);
   };
 
   const handleCreateNextSlide = async () => {
@@ -266,7 +286,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       });
       navigate(`/decks/${deckId}/slides/${newSlide.id}`);
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -285,7 +305,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
 
   const handleSubmitTweak = async () => {
     if (!tweakPrompt.trim()) {
-      alert('Please enter a tweak prompt');
+      setSnackbar({ open: true, message: 'Please enter a tweak prompt', severity: 'warning' });
       return;
     }
 
@@ -295,7 +315,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       if (isEmbedded && onSlideChange) onSlideChange();
       handleCloseTweakDialog();
     } catch (err) {
-      alert(`Error tweaking image: ${err.message}`);
+      setSnackbar({ open: true, message: `Error tweaking image: ${err.message}`, severity: 'error' });
     }
   };
 
@@ -603,7 +623,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={() => handleDeleteImage(image.id)}
+                        onClick={() => handleDeleteImageClick(image.id)}
                         title="Delete image"
                       >
                         <Delete />
@@ -699,6 +719,41 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Image Confirmation Dialog */}
+      <Dialog
+        open={deleteImageDialogOpen}
+        onClose={handleDeleteImageCancel}
+      >
+        <DialogTitle>Delete Image?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this image? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteImageCancel}>Cancel</Button>
+          <Button onClick={handleDeleteImageConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 
