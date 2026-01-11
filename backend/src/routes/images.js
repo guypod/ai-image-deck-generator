@@ -78,19 +78,29 @@ router.post(
     const entityImageBuffers = [];
     const globalEntities = await fileSystem.getGlobalEntities();
 
+    console.log(`[Generate] Slide ${slideId}: Found ${referencedEntities.length} entity reference(s) in description`);
+    if (referencedEntities.length > 0) {
+      console.log(`[Generate] Entity refs: ${referencedEntities.map(e => e.entityName).join(', ')}`);
+    }
+
     for (const entity of referencedEntities) {
       try {
         let imagePath;
+        let source;
 
         // Check if entity is deck-specific or global
         if (deck.entities[entity.entityName]) {
           // Deck-specific entity
           imagePath = fileSystem.getEntityImagePath(deckId, entity.imageFilename);
+          source = 'deck';
         } else if (globalEntities[entity.entityName]) {
           // Global entity
           imagePath = fileSystem.getGlobalEntityImagePath(entity.imageFilename);
+          source = 'global';
         } else {
-          console.warn(`Entity ${entity.entityName} not found in deck or global entities`);
+          console.warn(`[Generate] Entity "${entity.entityName}" not found in deck or global entities`);
+          console.warn(`[Generate]   Available deck entities: ${Object.keys(deck.entities).join(', ') || '(none)'}`);
+          console.warn(`[Generate]   Available global entities: ${Object.keys(globalEntities).join(', ') || '(none)'}`);
           continue;
         }
 
@@ -99,8 +109,9 @@ router.post(
           buffer,
           label: entity.displayName
         });
+        console.log(`[Generate] Loaded entity "${entity.entityName}" from ${source}: ${entity.imageFilename}`);
       } catch (error) {
-        console.warn(`Failed to load entity image ${entity.imageFilename}:`, error.message);
+        console.error(`[Generate] FAILED to load entity image "${entity.entityName}" (${entity.imageFilename}):`, error.message);
       }
     }
 
@@ -391,11 +402,9 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
   if (!job) return;
 
   try {
-    // Get settings
-    const settings = await fileSystem.getSettings();
-
     // Get merged entities once (for all slides)
     const mergedEntities = await fileSystem.getMergedEntities(deck.id);
+    const globalEntities = await fileSystem.getGlobalEntities();
 
     // Generate for each slide sequentially (to respect rate limits)
     for (const slide of slides) {
@@ -407,8 +416,53 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
         const { prompt } = buildFullPrompt(
           visualStyle,
           slide.imageDescription,
-          mergedEntities
+          mergedEntities,
+          deck.themeImages || []
         );
+
+        // Get referenced entity images for this slide
+        const referencedEntities = getReferencedEntityImages(
+          slide.imageDescription,
+          mergedEntities,
+          deck.id
+        );
+
+        // Load entity image buffers
+        const entityImageBuffers = [];
+        for (const entity of referencedEntities) {
+          try {
+            let imagePath;
+            if (deck.entities[entity.entityName]) {
+              imagePath = fileSystem.getEntityImagePath(deck.id, entity.imageFilename);
+            } else if (globalEntities[entity.entityName]) {
+              imagePath = fileSystem.getGlobalEntityImagePath(entity.imageFilename);
+            } else {
+              console.warn(`[Bulk] Entity ${entity.entityName} not found in deck or global entities`);
+              continue;
+            }
+            const buffer = await fs.readFile(imagePath);
+            entityImageBuffers.push({ buffer, label: entity.displayName });
+          } catch (error) {
+            console.warn(`[Bulk] Failed to load entity image ${entity.imageFilename}:`, error.message);
+          }
+        }
+
+        // Load theme image buffers
+        const themeImageBuffers = [];
+        if (deck.themeImages && deck.themeImages.length > 0) {
+          for (const themeImageFilename of deck.themeImages) {
+            try {
+              const imagePath = fileSystem.getThemeImagePath(deck.id, themeImageFilename);
+              const buffer = await fs.readFile(imagePath);
+              themeImageBuffers.push({ buffer, label: 'Theme Reference' });
+            } catch (error) {
+              console.warn(`[Bulk] Failed to load theme image ${themeImageFilename}:`, error.message);
+            }
+          }
+        }
+
+        const allReferenceImages = [...entityImageBuffers, ...themeImageBuffers];
+        console.log(`[Bulk] Slide ${slide.id}: ${entityImageBuffers.length} entity ref(s), ${themeImageBuffers.length} theme image(s)`);
 
         // Generate images
         const tasks = Array.from({ length: count }, () => async () => {
@@ -422,7 +476,8 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
               apiKey: process.env.GEMINI_API_KEY,
               model: geminiNanoBanana.MODELS.FLASH,
               aspectRatio: '16:9',
-              resolution: '2K'
+              resolution: '2K',
+              referenceImages: allReferenceImages.length > 0 ? allReferenceImages : null
             });
           } else if (service === 'gemini-pro') {
             if (!process.env.GEMINI_API_KEY) {
@@ -432,7 +487,8 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
               apiKey: process.env.GEMINI_API_KEY,
               model: geminiNanoBanana.MODELS.PRO,
               aspectRatio: '16:9',
-              resolution: '2K'
+              resolution: '2K',
+              referenceImages: allReferenceImages.length > 0 ? allReferenceImages : null
             });
           } else {
             throw new Error(`Unknown service: ${service}`);
