@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline, AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { Settings as SettingsIcon } from '@mui/icons-material';
 
@@ -9,6 +9,13 @@ import DeckEditor from './components/DeckEditor';
 import SlideEditor from './components/SlideEditor';
 import SlideDeckView from './components/SlideDeckView';
 import Settings from './components/Settings';
+
+// Wrapper to force COMPLETE remount of SlideEditor when slideId OR deckId changes
+function SlideEditorWrapper() {
+  const { slideId, deckId } = useParams();
+  // Using both deckId and slideId in key ensures complete remount
+  return <SlideEditor key={`${deckId}-${slideId}`} />;
+}
 
 const theme = createTheme({
   palette: {
@@ -57,7 +64,7 @@ function App() {
             <Route path="/" element={<DeckList />} />
             <Route path="/decks/:deckId" element={<DeckEditor />} />
             <Route path="/decks/:deckId/edit" element={<SlideDeckView />} />
-            <Route path="/decks/:deckId/slides/:slideId" element={<SlideEditor />} />
+            <Route path="/decks/:deckId/slides/:slideId" element={<SlideEditorWrapper />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Box>

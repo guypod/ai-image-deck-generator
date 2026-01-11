@@ -27,7 +27,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen } from '@mui/icons-material';
+import { ArrowBack, PhotoCamera, Delete, PushPin, Edit as EditIcon, Lock, LockOpen, Close } from '@mui/icons-material';
 import { useSlide, useSlides } from '../hooks/useSlides';
 import { useDeck } from '../hooks/useDecks';
 import { useImages } from '../hooks/useImages';
@@ -42,12 +42,13 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const slideId = isEmbedded ? slideIdProp : slideIdParam;
 
   const { deck } = useDeck(deckId);
+  // Always fetch from API to ensure we have fresh data
   const { slide: slideFromHook, updateSlide, pinImage, deleteImage, refresh } = useSlide(deckId, slideId);
   const { generating, generateImages, tweakImage } = useImages(deckId, slideId);
   const { createSlide } = useSlides(deckId);
 
-  // Use slideData prop if embedded, otherwise use hook data
-  const slide = isEmbedded ? slideData : slideFromHook;
+  // Always use hook data to ensure fresh API data
+  const slide = slideFromHook;
 
   const [speakerNotes, setSpeakerNotes] = useState('');
   const [imageDescription, setImageDescription] = useState('');
@@ -64,7 +65,33 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [tweakImageId, setTweakImageId] = useState(null);
   const [tweakPrompt, setTweakPrompt] = useState('');
   const [tweakCount, setTweakCount] = useState(2);
+  const [viewImageId, setViewImageId] = useState(null);
 
+  // Store current state in refs so we can access it during navigation
+  const currentStateRef = React.useRef({
+    speakerNotes: '',
+    imageDescription: '',
+    overrideVisualStyle: '',
+    noImages: false,
+    descriptionLocked: false,
+    sceneStart: false,
+    unsavedChanges: false
+  });
+
+  // Update ref whenever state changes
+  React.useEffect(() => {
+    currentStateRef.current = {
+      speakerNotes,
+      imageDescription,
+      overrideVisualStyle,
+      noImages,
+      descriptionLocked,
+      sceneStart,
+      unsavedChanges
+    };
+  }, [speakerNotes, imageDescription, overrideVisualStyle, noImages, descriptionLocked, sceneStart, unsavedChanges]);
+
+  // Load slide data when slide changes OR slideId changes
   useEffect(() => {
     if (slide) {
       setSpeakerNotes(slide.speakerNotes);
@@ -75,7 +102,61 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setSceneStart(slide.sceneStart || false);
       setUnsavedChanges(false);
     }
-  }, [slide]);
+  }, [slide, slideId]); // Added slideId as dependency
+
+  // Track if we need to refresh on mount due to save from previous slide
+  const needsRefreshRef = React.useRef(false);
+
+  // Save immediately when slideId is about to change
+  React.useEffect(() => {
+    return () => {
+      // On unmount/cleanup, save if there are unsaved changes
+      const state = currentStateRef.current;
+      if (state.unsavedChanges && slideId) {
+        needsRefreshRef.current = true;
+        // Use slideAPI directly to ensure it works even after component updates
+        slideAPI.update(deckId, slideId, {
+          speakerNotes: state.speakerNotes,
+          imageDescription: state.imageDescription,
+          overrideVisualStyle: state.overrideVisualStyle || null,
+          noImages: state.noImages,
+          descriptionLocked: state.descriptionLocked,
+          sceneStart: state.sceneStart
+        }).catch(err => {
+          console.error('Failed to save on navigation:', err);
+        });
+      }
+    };
+  }, [slideId, deckId]);
+
+  // Force refresh when component mounts if previous navigation triggered a save
+  React.useEffect(() => {
+    if (needsRefreshRef.current && refresh) {
+      setTimeout(() => {
+        refresh();
+        needsRefreshRef.current = false;
+      }, 500);
+    }
+  }, [slideId, refresh]);
+
+  // Manual save function for blur events
+  const handleBlurSave = async () => {
+    if (unsavedChanges) {
+      try {
+        await updateSlide({
+          speakerNotes,
+          imageDescription,
+          overrideVisualStyle: overrideVisualStyle || null,
+          noImages,
+          descriptionLocked,
+          sceneStart
+        });
+        setUnsavedChanges(false);
+      } catch (err) {
+        console.error('Save on blur failed:', err);
+      }
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -266,6 +347,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <TextField
+              key={`speaker-notes-${slideId}`}
               fullWidth
               label="Speaker Notes"
               multiline
@@ -275,6 +357,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 setSpeakerNotes(e.target.value);
                 setUnsavedChanges(true);
               }}
+              onBlur={handleBlurSave}
               placeholder="What you'll say on this slide..."
               sx={{ mb: 3 }}
             />
@@ -305,6 +388,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                   setImageDescription(e.target.value);
                   setUnsavedChanges(true);
                 }}
+                onBlur={handleBlurSave}
                 placeholder="Describe the image to generate... (or leave empty to auto-generate)"
                 helperText="Use @EntityName to reference named entities"
               />
@@ -318,6 +402,66 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
               </Button>
             </Box>
 
+            <Divider sx={{ my: 3 }} />
+
+            <Box display="flex" gap={2} alignItems="center" mb={2}>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel>Service</InputLabel>
+                <Select
+                  value={service}
+                  label="Service"
+                  onChange={(e) => setService(e.target.value)}
+                >
+                  <MenuItem value="openai-gpt-image">OpenAI GPT Image</MenuItem>
+                  <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
+                  <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Variants</InputLabel>
+                <Select
+                  value={variantCount}
+                  label="Variants"
+                  onChange={(e) => setVariantCount(e.target.value)}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <MenuItem key={n} value={n}>
+                      {n}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={(generating || generatingDescription) ? <CircularProgress size={20} /> : <PhotoCamera />}
+              onClick={handleGenerate}
+              disabled={generating || generatingDescription || noImages}
+            >
+              {generatingDescription ? 'Creating Description...' :
+               generating ? 'Generating Images...' :
+               noImages ? 'Image Generation Disabled' :
+               'Generate Images'}
+            </Button>
+
+            {!imageDescription.trim() && !noImages && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Description will be auto-generated using ChatGPT from your speaker notes
+              </Typography>
+            )}
+
+            {noImages && (
+              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+                This slide is marked as "no images" - image generation is disabled
+              </Typography>
+            )}
+
+            <Divider sx={{ my: 3 }} />
+
             <TextField
               fullWidth
               multiline
@@ -328,6 +472,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 setOverrideVisualStyle(e.target.value);
                 setUnsavedChanges(true);
               }}
+              onBlur={handleBlurSave}
               placeholder="Leave empty to use deck-wide visual style..."
               helperText="Override the deck-wide visual style for this slide only"
               sx={{ mb: 2 }}
@@ -399,62 +544,6 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 </Button>
               </Alert>
             )}
-
-            <Box display="flex" gap={2} alignItems="center" mb={2}>
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Service</InputLabel>
-                <Select
-                  value={service}
-                  label="Service"
-                  onChange={(e) => setService(e.target.value)}
-                >
-                  <MenuItem value="openai-gpt-image">OpenAI GPT Image</MenuItem>
-                  <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
-                  <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Variants</InputLabel>
-                <Select
-                  value={variantCount}
-                  label="Variants"
-                  onChange={(e) => setVariantCount(e.target.value)}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <MenuItem key={n} value={n}>
-                      {n}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              startIcon={(generating || generatingDescription) ? <CircularProgress size={20} /> : <PhotoCamera />}
-              onClick={handleGenerate}
-              disabled={generating || generatingDescription || noImages}
-            >
-              {generatingDescription ? 'Creating Description...' :
-               generating ? 'Generating Images...' :
-               noImages ? 'Image Generation Disabled' :
-               'Generate Images'}
-            </Button>
-
-            {!imageDescription.trim() && !noImages && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Description will be auto-generated using ChatGPT from your speaker notes
-              </Typography>
-            )}
-
-            {noImages && (
-              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
-                This slide is marked as "no images" - image generation is disabled
-              </Typography>
-            )}
           </Paper>
         </Grid>
 
@@ -491,7 +580,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                       height="200"
                       image={slideAPI.getImage(deckId, slideId, image.id)}
                       alt="Generated"
-                      sx={{ objectFit: 'contain', bgcolor: 'grey.100' }}
+                      onClick={() => setViewImageId(image.id)}
+                      sx={{ objectFit: 'contain', bgcolor: 'grey.100', cursor: 'pointer' }}
                     />
                     <CardActions>
                       <IconButton
@@ -576,6 +666,38 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
             {generating ? 'Tweaking...' : 'Generate Tweaked Images'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Image Viewer Dialog */}
+      <Dialog
+        open={viewImageId !== null}
+        onClose={() => setViewImageId(null)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6">Image Preview</Typography>
+          <IconButton
+            onClick={() => setViewImageId(null)}
+            size="small"
+            sx={{ color: 'text.secondary' }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'grey.900' }}>
+          {viewImageId && (
+            <img
+              src={slideAPI.getImage(deckId, slideId, viewImageId)}
+              alt="Full size preview"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+              }}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </>
   );

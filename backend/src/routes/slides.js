@@ -14,6 +14,12 @@ const router = express.Router({ mergeParams: true });
 router.get('/', asyncHandler(async (req, res) => {
   const { deckId } = req.params;
   const slides = await fileSystem.getSlides(deckId);
+
+  // Prevent caching to ensure fresh data after updates
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   res.json(slides);
 }));
 
@@ -24,6 +30,12 @@ router.get('/', asyncHandler(async (req, res) => {
 router.get('/:slideId', asyncHandler(async (req, res) => {
   const { deckId, slideId } = req.params;
   const slide = await fileSystem.getSlide(deckId, slideId);
+
+  // Prevent caching to ensure fresh data after updates
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   res.json(slide);
 }));
 

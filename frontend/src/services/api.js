@@ -39,8 +39,13 @@ export const deckAPI = {
 
 // Slide API
 export const slideAPI = {
-  getAll: (deckId) => api.get(`/decks/${deckId}/slides`),
-  getById: (deckId, slideId) => api.get(`/decks/${deckId}/slides/${slideId}`),
+  getAll: (deckId) => api.get(`/decks/${deckId}/slides`, {
+    headers: { 'Cache-Control': 'no-cache' }
+  }),
+  getById: (deckId, slideId) => api.get(`/decks/${deckId}/slides/${slideId}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+    params: { _t: Date.now() } // Cache busting
+  }),
   create: (deckId, data) => api.post(`/decks/${deckId}/slides`, data),
   update: (deckId, slideId, data) =>
     api.put(`/decks/${deckId}/slides/${slideId}`, data),
