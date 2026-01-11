@@ -91,7 +91,6 @@ export default function Settings() {
             Required environment variables:
             <ul style={{ marginTop: 8, marginBottom: 0 }}>
               <li><code>GEMINI_API_KEY</code> - Get from <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer">Google AI Studio</a></li>
-              <li><code>OPENAI_API_KEY</code> - Get from <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">OpenAI Platform</a></li>
               <li><code>GOOGLE_IMAGEN_API_KEY</code> - Get from <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">Google Cloud Console</a></li>
             </ul>
           </Typography>
@@ -114,7 +113,6 @@ export default function Settings() {
             label="Default AI Service"
             onChange={(e) => setDefaultService(e.target.value)}
           >
-            <MenuItem value="openai-gpt-image">OpenAI GPT Image</MenuItem>
             <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
             <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
           </Select>

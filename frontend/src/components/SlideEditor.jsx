@@ -432,7 +432,6 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                   label="Service"
                   onChange={(e) => setService(e.target.value)}
                 >
-                  <MenuItem value="openai-gpt-image">OpenAI GPT Image</MenuItem>
                   <MenuItem value="gemini-flash">Gemini Flash</MenuItem>
                   <MenuItem value="gemini-pro">Gemini Pro</MenuItem>
                 </Select>
@@ -629,8 +628,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                         <Delete />
                       </IconButton>
                       <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                        {image.service === 'openai-gpt-image' ? 'GPT Image' :
-                         image.service === 'gemini-flash' ? 'Gemini Flash' :
+                        {image.service === 'gemini-flash' ? 'Gemini Flash' :
                          image.service === 'gemini-pro' ? 'Gemini Pro' : image.service}
                       </Typography>
                     </CardActions>

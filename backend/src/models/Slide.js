@@ -15,10 +15,10 @@ const imageMetadataSchema = Joi.object({
     .iso()
     .required(),
   service: Joi.string()
-    .valid('openai-gpt-image', 'gemini-flash', 'gemini-pro')
+    .valid('gemini-flash', 'gemini-pro')
     .required()
     .messages({
-      'any.only': 'Service must be openai-gpt-image, gemini-flash, or gemini-pro'
+      'any.only': 'Service must be gemini-flash or gemini-pro'
     }),
   prompt: Joi.string()
     .min(1)

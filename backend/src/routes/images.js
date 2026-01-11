@@ -5,7 +5,6 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { generateImagesSchema, tweakImageSchema } from '../models/Slide.js';
 import * as fileSystem from '../services/fileSystem.js';
-import * as openaiGptImage from '../services/openaiGptImage.js';
 import * as geminiNanoBanana from '../services/geminiNanoBanana.js';
 import * as imageProcessor from '../services/imageProcessor.js';
 import { buildFullPrompt, getReferencedEntityImages } from '../utils/promptParser.js';
@@ -131,16 +130,7 @@ router.post(
     const tasks = Array.from({ length: count }, () => async () => {
       let imageBuffer;
 
-      if (service === 'openai-gpt-image') {
-        if (!process.env.OPENAI_API_KEY) {
-          throw new Error('OPENAI_API_KEY not configured in environment');
-        }
-        imageBuffer = await openaiGptImage.generateImage(prompt, {
-          model: openaiGptImage.MODELS.STANDARD,
-          quality: 'standard',
-          style: 'natural'
-        });
-      } else if (service === 'gemini-flash') {
+      if (service === 'gemini-flash') {
         if (!process.env.GEMINI_API_KEY) {
           throw new Error('GEMINI_API_KEY not configured in environment');
         }
@@ -223,12 +213,7 @@ router.post(
     const tasks = Array.from({ length: count }, () => async () => {
       let imageBuffer;
 
-      if (sourceImage.service === 'openai-gpt-image') {
-        if (!process.env.OPENAI_API_KEY) {
-          throw new Error('OPENAI_API_KEY not configured in environment');
-        }
-        imageBuffer = await openaiGptImage.tweakImage(sourceImageBuffer, prompt);
-      } else if (sourceImage.service === 'gemini-flash') {
+      if (sourceImage.service === 'gemini-flash') {
         if (!process.env.GEMINI_API_KEY) {
           throw new Error('GEMINI_API_KEY not configured in environment');
         }
@@ -429,16 +414,7 @@ async function generateAllInBackground(jobId, deck, slides, count, service) {
         const tasks = Array.from({ length: count }, () => async () => {
           let imageBuffer;
 
-          if (service === 'openai-gpt-image') {
-            if (!process.env.OPENAI_API_KEY) {
-              throw new Error('OPENAI_API_KEY not configured in environment');
-            }
-            imageBuffer = await openaiGptImage.generateImage(prompt, {
-              model: openaiGptImage.MODELS.STANDARD,
-              quality: 'standard',
-              style: 'natural'
-            });
-          } else if (service === 'gemini-flash') {
+          if (service === 'gemini-flash') {
             if (!process.env.GEMINI_API_KEY) {
               throw new Error('GEMINI_API_KEY not configured in environment');
             }
