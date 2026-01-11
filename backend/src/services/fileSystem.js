@@ -853,6 +853,62 @@ export async function saveSettings(settings) {
   return settings;
 }
 
+// ===== EXPORT STATE OPERATIONS =====
+
+/**
+ * Get export state for a deck
+ * Returns null if no export is in progress
+ */
+export async function getExportState(deckId) {
+  const statePath = path.join(getStorageDir(), `deck-${deckId}`, 'export-state.json');
+  try {
+    return await readJson(statePath);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Save export state for a deck
+ * @param {string} deckId - Deck ID
+ * @param {Object} state - Export state
+ * @param {string} state.presentationId - Google Slides presentation ID
+ * @param {string} state.presentationUrl - Google Slides URL
+ * @param {string} state.title - Presentation title
+ * @param {Array<string>} state.slideIds - Array of created Google Slide IDs
+ * @param {number} state.lastProcessedSlide - Index of last fully processed slide (-1 if none)
+ * @param {number} state.totalSlides - Total number of slides to process
+ * @param {string} state.phase - Current phase: 'creating_slides' | 'processing_slides' | 'complete'
+ * @param {string} state.startedAt - ISO timestamp when export started
+ * @param {string} state.updatedAt - ISO timestamp of last update
+ */
+export async function saveExportState(deckId, state) {
+  const statePath = path.join(getStorageDir(), `deck-${deckId}`, 'export-state.json');
+  const stateWithTimestamp = {
+    ...state,
+    updatedAt: new Date().toISOString()
+  };
+  await writeJsonAtomic(statePath, stateWithTimestamp);
+  return stateWithTimestamp;
+}
+
+/**
+ * Clear export state for a deck (call on successful completion)
+ */
+export async function clearExportState(deckId) {
+  const statePath = path.join(getStorageDir(), `deck-${deckId}`, 'export-state.json');
+  try {
+    await fs.unlink(statePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
 export default {
   initStorage,
   getStorageDir,
@@ -880,5 +936,8 @@ export default {
   getImagePath,
   getEntityImagePath,
   getSettings,
-  saveSettings
+  saveSettings,
+  getExportState,
+  saveExportState,
+  clearExportState
 };

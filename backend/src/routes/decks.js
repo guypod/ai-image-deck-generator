@@ -331,12 +331,44 @@ router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) =>
 }));
 
 /**
+ * GET /api/decks/:deckId/export-state
+ * Get current export state (for resume capability)
+ */
+router.get('/:deckId/export-state', asyncHandler(async (req, res) => {
+  const { deckId } = req.params;
+  const state = await fileSystem.getExportState(deckId);
+
+  if (!state) {
+    return res.json({ hasExportInProgress: false });
+  }
+
+  res.json({
+    hasExportInProgress: state.phase !== 'complete',
+    state
+  });
+}));
+
+/**
+ * DELETE /api/decks/:deckId/export-state
+ * Clear export state (cancel/reset export)
+ */
+router.delete('/:deckId/export-state', asyncHandler(async (req, res) => {
+  const { deckId } = req.params;
+  await fileSystem.clearExportState(deckId);
+  res.json({ success: true });
+}));
+
+/**
  * POST /api/decks/:deckId/export
  * Export deck to Google Slides
+ * Body options:
+ *   - title: Presentation title (optional, defaults to deck name)
+ *   - fromSlideIndex: Start from this slide index (0-based, optional)
+ *   - resume: Continue from existing export state (optional)
  */
 router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (req, res) => {
   const { deckId } = req.params;
-  const { title } = req.body;
+  const { title, fromSlideIndex = 0, resume = false } = req.body;
 
   // Get settings
   const settings = await fileSystem.getSettings();
@@ -348,8 +380,6 @@ router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (r
   }
 
   // Check if credentials are configured
-  // For now, we'll use application default credentials or service account
-  // Instead of requiring OAuth
   const credentials = settings.googleSlides?.credentials || null;
 
   // Get deck and slides
@@ -362,7 +392,27 @@ router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (r
   // Get storage directory
   const storageDir = fileSystem.getStorageDir();
 
-  // Export to Google Slides
+  // Check for existing export state if resuming
+  let existingState = null;
+  if (resume) {
+    existingState = await fileSystem.getExportState(deckId);
+    if (!existingState) {
+      return res.status(400).json({
+        error: 'No export in progress to resume'
+      });
+    }
+    if (existingState.phase === 'complete') {
+      return res.status(400).json({
+        error: 'Previous export already completed. Start a new export instead.'
+      });
+    }
+    console.log(`Resuming export for deck ${deckId} from slide ${existingState.lastProcessedSlide + 1}`);
+  } else {
+    // Clear any existing state when starting fresh
+    await fileSystem.clearExportState(deckId);
+  }
+
+  // Export to Google Slides with state tracking
   const result = await exportToGoogleSlides(
     deck,
     slides,
@@ -371,13 +421,24 @@ router.post('/:deckId/export', validate(exportDeckSchema), asyncHandler(async (r
     credentials,
     settings.googleSlides.templateSlideUrl,
     exportTitle,
-    settings.googleSlides.templateSlideIndex || 1
+    settings.googleSlides.templateSlideIndex || 1,
+    {
+      fromSlideIndex: resume ? (existingState?.fromSlideIndex || 0) : fromSlideIndex,
+      existingState: resume ? existingState : null,
+      saveState: async (state) => {
+        await fileSystem.saveExportState(deckId, state);
+      }
+    }
   );
+
+  // Clear export state on successful completion
+  await fileSystem.clearExportState(deckId);
 
   res.json({
     success: true,
     presentationId: result.presentationId,
-    url: result.url
+    url: result.url,
+    exportedSlideCount: result.exportedSlideCount
   });
 }));
 

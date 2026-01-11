@@ -96,6 +96,10 @@ export const globalEntitiesAPI = {
 export const exportAPI = {
   toGoogleSlides: (deckId, data) =>
     api.post(`/decks/${deckId}/export`, data),
+  getExportState: (deckId) =>
+    api.get(`/decks/${deckId}/export-state`),
+  clearExportState: (deckId) =>
+    api.delete(`/decks/${deckId}/export-state`),
 };
 
 export default api;

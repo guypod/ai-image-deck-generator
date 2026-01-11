@@ -98,6 +98,18 @@ export const exportDeckSchema = Joi.object({
     .messages({
       'string.min': 'Title must be at least 1 character',
       'string.max': 'Title must not exceed 200 characters'
+    }),
+  fromSlideIndex: Joi.number()
+    .integer()
+    .min(0)
+    .messages({
+      'number.base': 'fromSlideIndex must be a number',
+      'number.integer': 'fromSlideIndex must be an integer',
+      'number.min': 'fromSlideIndex must be at least 0'
+    }),
+  resume: Joi.boolean()
+    .messages({
+      'boolean.base': 'resume must be a boolean'
     })
 });
 

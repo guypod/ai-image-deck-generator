@@ -371,7 +371,7 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
 }
 
 /**
- * Export deck to Google Slides
+ * Export deck to Google Slides with incremental progress tracking
  * @param {Object} deck - Deck object
  * @param {Array} slides - Array of slide objects
  * @param {string} deckId - Deck ID
@@ -380,9 +380,21 @@ async function addSpeakerNotes(slidesClient, presentationId, slideId, notes) {
  * @param {string} templateUrl - Template presentation URL
  * @param {string} title - Title for new presentation
  * @param {number} templateSlideIndex - Slide index (1-based) in template to use as base
- * @returns {Object} - { presentationId, url }
+ * @param {Object} options - Additional options
+ * @param {number} options.fromSlideIndex - Start export from this slide index (0-based)
+ * @param {Object} options.existingState - Existing export state for resume
+ * @param {Function} options.onProgress - Progress callback: (state) => void
+ * @param {Function} options.saveState - State persistence callback: (state) => Promise<void>
+ * @returns {Object} - { presentationId, url, exportedSlideCount }
  */
-export async function exportToGoogleSlides(deck, slides, deckId, storageDir, credentials, templateUrl, title, templateSlideIndex = 1) {
+export async function exportToGoogleSlides(deck, slides, deckId, storageDir, credentials, templateUrl, title, templateSlideIndex = 1, options = {}) {
+  const {
+    fromSlideIndex = 0,
+    existingState = null,
+    onProgress = null,
+    saveState = null
+  } = options;
+
   if (!templateUrl) {
     throw new Error('Template slide URL not configured. Please add it in settings.');
   }
@@ -401,65 +413,129 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
   const slidesClient = await initializeSlidesClient(authCredentials);
   const driveClient = await initializeDriveClient(authCredentials);
 
-  // Extract template ID and copy presentation
-  const templateId = extractPresentationId(templateUrl);
-  const newPresentationId = await copyPresentation(driveClient, templateId, title);
-
-  // Get the presentation to find existing slides
-  const presentation = await slidesClient.presentations.get({
-    presentationId: newPresentationId
-  });
-
-  // Get the template slide to duplicate (convert 1-based index to 0-based)
-  const templateSlides = presentation.data.slides;
-  const templateSlideIndexZeroBased = templateSlideIndex - 1;
-
-  if (templateSlideIndexZeroBased < 0 || templateSlideIndexZeroBased >= templateSlides.length) {
-    throw new Error(`Template slide index ${templateSlideIndex} is out of range. Template has ${templateSlides.length} slide(s).`);
-  }
-
-  const templateSlideId = templateSlides[templateSlideIndexZeroBased].objectId;
-
-  // Sort slides by order
+  // Sort slides by order and filter by fromSlideIndex
   const sortedSlides = [...slides].sort((a, b) => a.order - b.order);
+  const slidesToExport = sortedSlides.slice(fromSlideIndex);
 
-  // Duplicate the template slide for each deck slide and insert at the top
-  const slideIds = [];
-  for (let i = 0; i < sortedSlides.length; i++) {
-    // Duplicate the slide
-    const duplicateResponse = await slidesClient.presentations.batchUpdate({
-      presentationId: newPresentationId,
-      requestBody: {
-        requests: [{
-          duplicateObject: {
-            objectId: templateSlideId,
-            objectIds: {}
-          }
-        }]
-      }
-    });
-
-    const newSlideId = duplicateResponse.data.replies[0].duplicateObject.objectId;
-    slideIds.push(newSlideId);
-
-    // Move the duplicated slide to position i (at the beginning)
-    await slidesClient.presentations.batchUpdate({
-      presentationId: newPresentationId,
-      requestBody: {
-        requests: [{
-          updateSlidesPosition: {
-            slideObjectIds: [newSlideId],
-            insertionIndex: i
-          }
-        }]
-      }
-    });
+  if (slidesToExport.length === 0) {
+    throw new Error('No slides to export');
   }
 
-  // Process each slide
-  for (let i = 0; i < sortedSlides.length; i++) {
-    const slide = sortedSlides[i];
+  let state;
+  let newPresentationId;
+  let slideIds = [];
+
+  // Check if we're resuming from existing state
+  if (existingState && existingState.presentationId) {
+    console.log(`Resuming export from existing state. Last processed: ${existingState.lastProcessedSlide}`);
+    state = existingState;
+    newPresentationId = existingState.presentationId;
+    slideIds = existingState.slideIds || [];
+  } else {
+    // Create new presentation
+    console.log(`Creating new presentation: ${title}`);
+    const templateId = extractPresentationId(templateUrl);
+    newPresentationId = await copyPresentation(driveClient, templateId, title);
+
+    const presentationUrl = `https://docs.google.com/presentation/d/${newPresentationId}`;
+
+    // Initialize state
+    state = {
+      presentationId: newPresentationId,
+      presentationUrl,
+      title,
+      slideIds: [],
+      lastProcessedSlide: -1,
+      totalSlides: slidesToExport.length,
+      phase: 'creating_slides',
+      fromSlideIndex,
+      startedAt: new Date().toISOString()
+    };
+
+    if (saveState) {
+      await saveState(state);
+    }
+    if (onProgress) {
+      onProgress(state);
+    }
+
+    // Get the presentation to find existing slides
+    const presentation = await slidesClient.presentations.get({
+      presentationId: newPresentationId
+    });
+
+    // Get the template slide to duplicate (convert 1-based index to 0-based)
+    const templateSlides = presentation.data.slides;
+    const templateSlideIndexZeroBased = templateSlideIndex - 1;
+
+    if (templateSlideIndexZeroBased < 0 || templateSlideIndexZeroBased >= templateSlides.length) {
+      throw new Error(`Template slide index ${templateSlideIndex} is out of range. Template has ${templateSlides.length} slide(s).`);
+    }
+
+    const templateSlideId = templateSlides[templateSlideIndexZeroBased].objectId;
+
+    // Create all slides first (duplicate and position)
+    console.log(`Creating ${slidesToExport.length} slides...`);
+    for (let i = 0; i < slidesToExport.length; i++) {
+      // Duplicate the slide
+      const duplicateResponse = await slidesClient.presentations.batchUpdate({
+        presentationId: newPresentationId,
+        requestBody: {
+          requests: [{
+            duplicateObject: {
+              objectId: templateSlideId,
+              objectIds: {}
+            }
+          }]
+        }
+      });
+
+      const newSlideId = duplicateResponse.data.replies[0].duplicateObject.objectId;
+      slideIds.push(newSlideId);
+
+      // Move the duplicated slide to position i (at the beginning)
+      await slidesClient.presentations.batchUpdate({
+        presentationId: newPresentationId,
+        requestBody: {
+          requests: [{
+            updateSlidesPosition: {
+              slideObjectIds: [newSlideId],
+              insertionIndex: i
+            }
+          }]
+        }
+      });
+
+      // Update state after each slide creation
+      state.slideIds = slideIds;
+      state.phase = 'creating_slides';
+
+      if (saveState) {
+        await saveState(state);
+      }
+      if (onProgress) {
+        onProgress({ ...state, createdSlides: i + 1 });
+      }
+
+      console.log(`Created slide ${i + 1}/${slidesToExport.length}`);
+    }
+
+    // Move to processing phase
+    state.phase = 'processing_slides';
+    if (saveState) {
+      await saveState(state);
+    }
+  }
+
+  // Process each slide (can resume from lastProcessedSlide)
+  const startIndex = state.lastProcessedSlide + 1;
+  console.log(`Processing slides starting from index ${startIndex}...`);
+
+  for (let i = startIndex; i < slidesToExport.length; i++) {
+    const slide = slidesToExport[i];
     const slideId = slideIds[i];
+
+    console.log(`Processing slide ${i + 1}/${slidesToExport.length}: ${slide.id}`);
 
     // Determine if slide should have image
     const shouldHaveImage = !slide.noImages && !slide.sceneStart;
@@ -469,6 +545,7 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     if (hasImage) {
       // Upload image to Drive and add to slide
       const imagePath = path.join(storageDir, `deck-${deckId}`, slide.id, pinnedImage.filename);
+      console.log(`Uploading image: ${imagePath}`);
       const imageFileId = await uploadImageToDrive(driveClient, imagePath, `${slide.id}_${pinnedImage.filename}`);
       const imageUrl = `https://drive.google.com/uc?export=view&id=${imageFileId}`;
 
@@ -481,13 +558,34 @@ export async function exportToGoogleSlides(deck, slides, deckId, storageDir, cre
     // Add speaker notes
     const speakerNotesText = slide.speakerNotes + '\n\n---\n\n' + (slide.imageDescription || 'No description');
     await addSpeakerNotes(slidesClient, newPresentationId, slideId, speakerNotesText);
+
+    // Update state after each slide is fully processed
+    state.lastProcessedSlide = i;
+    if (saveState) {
+      await saveState(state);
+    }
+    if (onProgress) {
+      onProgress({ ...state, currentSlide: i + 1 });
+    }
+
+    console.log(`Completed slide ${i + 1}/${slidesToExport.length}`);
+  }
+
+  // Mark as complete
+  state.phase = 'complete';
+  if (saveState) {
+    await saveState(state);
+  }
+  if (onProgress) {
+    onProgress(state);
   }
 
   const presentationUrl = `https://docs.google.com/presentation/d/${newPresentationId}`;
 
   return {
     presentationId: newPresentationId,
-    url: presentationUrl
+    url: presentationUrl,
+    exportedSlideCount: slidesToExport.length
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -23,11 +23,16 @@ import {
   DialogContentText,
   DialogActions,
   Snackbar,
+  LinearProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
-import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close, CloudUpload } from '@mui/icons-material';
+import { ArrowBack, Add, Delete, Edit, ImageNotSupported, Close, CloudUpload, Refresh } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
-import { slideAPI } from '../services/api';
+import { slideAPI, exportAPI } from '../services/api';
 import EntityManager from './EntityManager';
 import ThemeImageManager from './ThemeImageManager';
 
@@ -50,14 +55,37 @@ export default function DeckEditor() {
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
   const [generateAllDialogOpen, setGenerateAllDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [exportState, setExportState] = useState(null);
+  const [exportFromSlide, setExportFromSlide] = useState(0);
+  const [exportMode, setExportMode] = useState('new'); // 'new' or 'resume'
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (deck) {
       setName(deck.name);
       setVisualStyle(deck.visualStyle);
       setIsTest(deck.isTest || false);
     }
   }, [deck]);
+
+  // Check for existing export state
+  useEffect(() => {
+    const checkExportState = async () => {
+      try {
+        const response = await exportAPI.getExportState(deckId);
+        if (response.data.hasExportInProgress) {
+          setExportState(response.data.state);
+        } else {
+          setExportState(null);
+        }
+      } catch (err) {
+        console.error('Failed to check export state:', err);
+      }
+    };
+
+    if (deckId) {
+      checkExportState();
+    }
+  }, [deckId]);
 
   const handleEntityUpdate = () => {
     refresh();
@@ -198,7 +226,11 @@ export default function DeckEditor() {
     }
   };
 
-  const handleExportClick = () => {
+  const handleExportClick = (mode = 'new') => {
+    setExportMode(mode);
+    if (mode === 'new') {
+      setExportFromSlide(0);
+    }
     setExportDialogOpen(true);
   };
 
@@ -206,27 +238,36 @@ export default function DeckEditor() {
     setExportDialogOpen(false);
     setExporting(true);
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/decks/${deckId}/export`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: deck.name })
-        }
-      );
+      const exportData = {
+        title: deck.name,
+        resume: exportMode === 'resume',
+        fromSlideIndex: exportMode === 'new' ? exportFromSlide : undefined
+      };
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to export to Google Slides');
-      }
+      const response = await exportAPI.toGoogleSlides(deckId, exportData);
 
-      const data = await response.json();
+      // Clear export state after successful completion
+      setExportState(null);
 
       // Open the new presentation in a new tab
-      window.open(data.url, '_blank');
+      window.open(response.data.url, '_blank');
 
-      setSnackbar({ open: true, message: 'Successfully exported to Google Slides!', severity: 'success' });
+      setSnackbar({
+        open: true,
+        message: `Successfully exported ${response.data.exportedSlideCount} slides to Google Slides!`,
+        severity: 'success'
+      });
     } catch (err) {
+      // Refresh export state in case it was partially saved
+      try {
+        const stateResponse = await exportAPI.getExportState(deckId);
+        if (stateResponse.data.hasExportInProgress) {
+          setExportState(stateResponse.data.state);
+        }
+      } catch (stateErr) {
+        console.error('Failed to refresh export state:', stateErr);
+      }
+
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
       setExporting(false);
@@ -235,6 +276,16 @@ export default function DeckEditor() {
 
   const handleExportCancel = () => {
     setExportDialogOpen(false);
+  };
+
+  const handleClearExportState = async () => {
+    try {
+      await exportAPI.clearExportState(deckId);
+      setExportState(null);
+      setSnackbar({ open: true, message: 'Export state cleared', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
+    }
   };
 
   if (deckLoading) {
@@ -395,16 +446,49 @@ export default function DeckEditor() {
           <Button
             variant="contained"
             color="success"
-            onClick={handleExportClick}
+            onClick={() => handleExportClick('new')}
             disabled={exporting}
             startIcon={exporting ? <CircularProgress size={20} /> : <CloudUpload />}
           >
-            {exporting ? 'Exporting...' : 'Export to Google Slides'}
+            {exporting ? 'Exporting...' : 'New Export'}
           </Button>
+          {exportState && (
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={() => handleExportClick('resume')}
+              disabled={exporting}
+              startIcon={<Refresh />}
+            >
+              Continue Export ({exportState.lastProcessedSlide + 1}/{exportState.totalSlides})
+            </Button>
+          )}
         </Box>
+        {exportState && (
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+            <Typography variant="body2" color="info.contrastText" gutterBottom>
+              Export in progress: {exportState.lastProcessedSlide + 1} of {exportState.totalSlides} slides processed
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={((exportState.lastProcessedSlide + 1) / exportState.totalSlides) * 100}
+              sx={{ mb: 1 }}
+            />
+            <Typography variant="caption" color="info.contrastText">
+              Presentation: <a href={exportState.presentationUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>{exportState.title}</a>
+            </Typography>
+            <Button
+              size="small"
+              color="inherit"
+              onClick={handleClearExportState}
+              sx={{ ml: 2 }}
+            >
+              Clear
+            </Button>
+          </Box>
+        )}
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          Regenerate descriptions skips locked descriptions. Generate images skips "no images" slides. Export creates a new Google Slides presentation from this deck.
-        </Typography>
+          Regenerate descriptions skips locked descriptions. Generate images skips "no images" slides. Export creates a new Google Slides presentation from this deck.</Typography>
       </Paper>
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -561,23 +645,68 @@ export default function DeckEditor() {
         onClose={handleExportCancel}
         aria-labelledby="export-dialog-title"
         aria-describedby="export-dialog-description"
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle id="export-dialog-title">
-          Export to Google Slides
+          {exportMode === 'resume' ? 'Continue Export' : 'Export to Google Slides'}
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="export-dialog-description">
-            This will create a new presentation in your Google account with all slides from this deck.
-            Slides with images will show the pinned image as a full-slide image. Slides without images
-            will show the speaker notes as centered text.
-          </DialogContentText>
+          {exportMode === 'resume' ? (
+            <>
+              <DialogContentText id="export-dialog-description" sx={{ mb: 2 }}>
+                Continue the previous export from where it left off. This will resume adding slides
+                to the existing presentation.
+              </DialogContentText>
+              {exportState && (
+                <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1, mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Presentation:</strong> {exportState.title}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Progress:</strong> {exportState.lastProcessedSlide + 1} of {exportState.totalSlides} slides completed
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Phase:</strong> {exportState.phase === 'creating_slides' ? 'Creating slides' : 'Processing content'}
+                  </Typography>
+                </Box>
+              )}
+            </>
+          ) : (
+            <>
+              <DialogContentText id="export-dialog-description" sx={{ mb: 2 }}>
+                This will create a new presentation in your Google account.
+                Slides with images will show the pinned image as a full-slide image. Slides without images
+                will show the speaker notes as centered text.
+              </DialogContentText>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="from-slide-label">Start from slide</InputLabel>
+                <Select
+                  labelId="from-slide-label"
+                  value={exportFromSlide}
+                  label="Start from slide"
+                  onChange={(e) => setExportFromSlide(e.target.value)}
+                >
+                  <MenuItem value={0}>All slides (from beginning)</MenuItem>
+                  {slides.map((slide, index) => (
+                    <MenuItem key={slide.id} value={index}>
+                      Slide {index + 1} onwards ({slides.length - index} slides)
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary">
+                Export will include slides {exportFromSlide + 1} to {slides.length} ({slides.length - exportFromSlide} slides total)
+              </Typography>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleExportCancel}>
             Cancel
           </Button>
           <Button onClick={handleExportConfirm} variant="contained" color="success" autoFocus>
-            Export
+            {exportMode === 'resume' ? 'Continue Export' : 'Start Export'}
           </Button>
         </DialogActions>
       </Dialog>
