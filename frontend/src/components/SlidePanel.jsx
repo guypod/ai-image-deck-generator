@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -16,6 +16,17 @@ export default function SlidePanel({
   onToggleNoImages,
   deckId,
 }) {
+  const slideRefs = useRef({});
+
+  // Scroll to selected slide when it changes
+  useEffect(() => {
+    if (selectedSlideId && slideRefs.current[selectedSlideId]) {
+      slideRefs.current[selectedSlideId].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [selectedSlideId]);
   const handleDragEnd = (result) => {
     if (!result.destination) {
       return; // Dropped outside the list
@@ -117,7 +128,10 @@ export default function SlidePanel({
                   <Draggable key={slide.id} draggableId={slide.id} index={index}>
                     {(provided, snapshot) => (
                       <Box
-                        ref={provided.innerRef}
+                        ref={(el) => {
+                          provided.innerRef(el);
+                          slideRefs.current[slide.id] = el;
+                        }}
                         {...provided.draggableProps}
                       >
                         <SlideThumbnail

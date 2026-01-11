@@ -579,19 +579,24 @@ export async function updateSlide(deckId, slideId, updates) {
 
 /**
  * Get effective visual style for a slide
- * Priority: slide.overrideVisualStyle > scene's sceneVisualStyle > deck.visualStyle
+ * Priority: slide.overrideVisualStyle > current/previous scene's sceneVisualStyle > deck.visualStyle
  */
 export async function getEffectiveVisualStyle(deckId, slideId) {
   const deck = await getDeck(deckId);
   const slide = await getSlide(deckId, slideId);
   const allSlides = await getSlides(deckId);
 
-  // 1. Check slide's own override
+  // 1. Check slide's own override (individual slide setting)
   if (slide.overrideVisualStyle) {
     return slide.overrideVisualStyle;
   }
 
-  // 2. Find the most recent scene start before this slide
+  // 2. If this slide is a scene start with its own sceneVisualStyle, use it
+  if (slide.sceneStart && slide.sceneVisualStyle) {
+    return slide.sceneVisualStyle;
+  }
+
+  // 3. Find the most recent scene start before this slide (or at the same position)
   const previousSlides = allSlides
     .filter(s => s.order < slide.order)
     .sort((a, b) => b.order - a.order); // Sort descending to find most recent first
@@ -602,7 +607,7 @@ export async function getEffectiveVisualStyle(deckId, slideId) {
     }
   }
 
-  // 3. Fall back to deck's visual style
+  // 4. Fall back to deck's visual style
   return deck.visualStyle;
 }
 
