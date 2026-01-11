@@ -58,6 +58,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [noImages, setNoImages] = useState(false);
   const [descriptionLocked, setDescriptionLocked] = useState(false);
   const [sceneStart, setSceneStart] = useState(false);
+  const [sceneVisualStyle, setSceneVisualStyle] = useState('');
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -81,6 +82,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     noImages: false,
     descriptionLocked: false,
     sceneStart: false,
+    sceneVisualStyle: '',
     unsavedChanges: false
   });
 
@@ -93,9 +95,10 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       noImages,
       descriptionLocked,
       sceneStart,
+      sceneVisualStyle,
       unsavedChanges
     };
-  }, [speakerNotes, imageDescription, overrideVisualStyle, noImages, descriptionLocked, sceneStart, unsavedChanges]);
+  }, [speakerNotes, imageDescription, overrideVisualStyle, noImages, descriptionLocked, sceneStart, sceneVisualStyle, unsavedChanges]);
 
   // Load slide data when slide changes OR slideId changes
   useEffect(() => {
@@ -106,6 +109,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setNoImages(slide.noImages || false);
       setDescriptionLocked(slide.descriptionLocked || false);
       setSceneStart(slide.sceneStart || false);
+      setSceneVisualStyle(slide.sceneVisualStyle || '');
       setUnsavedChanges(false);
     }
   }, [slide, slideId]); // Added slideId as dependency
@@ -127,7 +131,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           overrideVisualStyle: state.overrideVisualStyle || null,
           noImages: state.noImages,
           descriptionLocked: state.descriptionLocked,
-          sceneStart: state.sceneStart
+          sceneStart: state.sceneStart,
+          sceneVisualStyle: state.sceneVisualStyle || null
         }).catch(err => {
           console.error('Failed to save on navigation:', err);
         });
@@ -155,7 +160,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           overrideVisualStyle: overrideVisualStyle || null,
           noImages,
           descriptionLocked,
-          sceneStart
+          sceneStart,
+          sceneVisualStyle: sceneVisualStyle || null
         });
         setUnsavedChanges(false);
       } catch (err) {
@@ -172,7 +178,8 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         overrideVisualStyle: overrideVisualStyle || null,
         noImages,
         descriptionLocked,
-        sceneStart
+        sceneStart,
+        sceneVisualStyle: sceneVisualStyle || null
       });
       setUnsavedChanges(false);
     } catch (err) {
@@ -540,9 +547,28 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 }
                 label="Scene Start (resets context)"
               />
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4, mb: sceneStart ? 2 : 0 }}>
                 Mark this slide as a scene boundary. Description generation will only use context from slides after this point. Scene starts are always without images.
               </Typography>
+
+              {/* Scene Visual Style - only shown when sceneStart is true */}
+              {sceneStart && (
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Scene Visual Style"
+                  value={sceneVisualStyle}
+                  onChange={(e) => {
+                    setSceneVisualStyle(e.target.value);
+                    setUnsavedChanges(true);
+                  }}
+                  onBlur={handleBlurSave}
+                  placeholder="Visual style for this scene (applies to all slides until the next scene start)..."
+                  helperText="This visual style will be used for all slides in this scene, unless overridden by individual slides"
+                  sx={{ mt: 1 }}
+                />
+              )}
             </Box>
 
             {lastUsedPrompt && (

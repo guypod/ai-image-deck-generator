@@ -517,6 +517,7 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
     noImages,
     descriptionLocked: false,
     sceneStart,
+    sceneVisualStyle: null,
     generatedImages: []
   };
 
@@ -563,6 +564,7 @@ export async function updateSlide(deckId, slideId, updates) {
       slide.noImages = true;
     }
   }
+  if (updates.sceneVisualStyle !== undefined) slide.sceneVisualStyle = updates.sceneVisualStyle;
 
   const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
   await writeJsonAtomic(slidePath, slide);
@@ -573,6 +575,35 @@ export async function updateSlide(deckId, slideId, updates) {
   await writeJsonAtomic(path.join(getStorageDir(), `deck-${deckId}`, 'deck.json'), deck);
 
   return slide;
+}
+
+/**
+ * Get effective visual style for a slide
+ * Priority: slide.overrideVisualStyle > scene's sceneVisualStyle > deck.visualStyle
+ */
+export async function getEffectiveVisualStyle(deckId, slideId) {
+  const deck = await getDeck(deckId);
+  const slide = await getSlide(deckId, slideId);
+  const allSlides = await getSlides(deckId);
+
+  // 1. Check slide's own override
+  if (slide.overrideVisualStyle) {
+    return slide.overrideVisualStyle;
+  }
+
+  // 2. Find the most recent scene start before this slide
+  const previousSlides = allSlides
+    .filter(s => s.order < slide.order)
+    .sort((a, b) => b.order - a.order); // Sort descending to find most recent first
+
+  for (const prevSlide of previousSlides) {
+    if (prevSlide.sceneStart && prevSlide.sceneVisualStyle) {
+      return prevSlide.sceneVisualStyle;
+    }
+  }
+
+  // 3. Fall back to deck's visual style
+  return deck.visualStyle;
 }
 
 /**

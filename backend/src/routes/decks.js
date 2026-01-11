@@ -256,8 +256,8 @@ router.post('/:deckId/regenerate-descriptions', asyncHandler(async (req, res) =>
 
   // Create tasks for parallel execution
   const tasks = unlockedSlides.map(slide => async () => {
-    // Use slide's override visual style if present, otherwise use deck's visual style
-    const visualStyle = slide.overrideVisualStyle || deck.visualStyle;
+    // Get effective visual style (considers slide override, scene style, deck style)
+    const visualStyle = await fileSystem.getEffectiveVisualStyle(deckId, slide.id);
 
     // Get speaker notes from previous slides for context
     // Only include slides after the most recent scene start

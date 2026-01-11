@@ -79,6 +79,13 @@ export const slideSchema = Joi.object({
     .default(false),
   sceneStart: Joi.boolean()
     .default(false),
+  sceneVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .default(null)
+    .messages({
+      'string.max': 'Scene visual style must not exceed 1000 characters'
+    }),
   generatedImages: Joi.array()
     .items(imageMetadataSchema)
     .default([])
@@ -112,7 +119,14 @@ export const createSlideSchema = Joi.object({
   descriptionLocked: Joi.boolean()
     .default(false),
   sceneStart: Joi.boolean()
-    .default(false)
+    .default(false),
+  sceneVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .default(null)
+    .messages({
+      'string.max': 'Scene visual style must not exceed 1000 characters'
+    })
 });
 
 // Validation for slide update
@@ -138,6 +152,12 @@ export const updateSlideSchema = Joi.object({
   noImages: Joi.boolean(),
   descriptionLocked: Joi.boolean(),
   sceneStart: Joi.boolean(),
+  sceneVisualStyle: Joi.string()
+    .max(1000)
+    .allow('', null)
+    .messages({
+      'string.max': 'Scene visual style must not exceed 1000 characters'
+    }),
   order: Joi.number()
     .integer()
     .min(0)
