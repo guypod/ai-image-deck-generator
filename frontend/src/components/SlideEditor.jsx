@@ -627,10 +627,6 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                     checked={noImages}
                     onChange={(e) => {
                       setNoImages(e.target.checked);
-                      // If unchecking noImages, also uncheck sceneStart
-                      if (!e.target.checked && sceneStart) {
-                        setSceneStart(false);
-                      }
                       setUnsavedChanges(true);
                     }}
                   />
@@ -649,10 +645,6 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                     checked={sceneStart}
                     onChange={(e) => {
                       setSceneStart(e.target.checked);
-                      // Scene starts must always have noImages=true
-                      if (e.target.checked) {
-                        setNoImages(true);
-                      }
                       setUnsavedChanges(true);
                     }}
                   />
@@ -660,7 +652,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                 label="Scene Start (resets context)"
               />
               <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4, mb: sceneStart ? 2 : 0 }}>
-                Mark this slide as a scene boundary. Description generation will only use context from slides after this point. Scene starts are always without images.
+                Mark this slide as a scene boundary. Description generation will only use context from slides after this point.
               </Typography>
 
               {/* Scene Visual Style - only shown when sceneStart is true */}

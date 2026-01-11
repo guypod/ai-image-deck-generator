@@ -503,11 +503,6 @@ export async function createSlide(deckId, speakerNotes = '', imageDescription = 
   const slideNum = deck.slides.length + 1;
   const slideId = `slide-${String(slideNum).padStart(3, '0')}`;
 
-  // Scene starts must always have noImages=true
-  if (sceneStart) {
-    noImages = true;
-  }
-
   const slide = {
     id: slideId,
     order: deck.slides.length,
@@ -577,13 +572,7 @@ export async function updateSlide(deckId, slideId, updates) {
   if (updates.noImages !== undefined) slide.noImages = updates.noImages;
   if (updates.descriptionLocked !== undefined) slide.descriptionLocked = updates.descriptionLocked;
   if (updates.noContext !== undefined) slide.noContext = updates.noContext;
-  if (updates.sceneStart !== undefined) {
-    slide.sceneStart = updates.sceneStart;
-    // Scene starts must always have noImages=true
-    if (updates.sceneStart) {
-      slide.noImages = true;
-    }
-  }
+  if (updates.sceneStart !== undefined) slide.sceneStart = updates.sceneStart;
   if (updates.sceneVisualStyle !== undefined) slide.sceneVisualStyle = updates.sceneVisualStyle;
 
   const slidePath = path.join(getStorageDir(), `deck-${deckId}`, slideId, 'slide.json');
