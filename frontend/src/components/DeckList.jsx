@@ -72,7 +72,8 @@ export default function DeckList() {
     }
   };
 
-  const handleDelete = async (deckId, deckName) => {
+  const handleDelete = async (e, deckId, deckName) => {
+    e.stopPropagation(); // Prevent any parent handlers
     if (!confirm(`Delete deck "${deckName}"? This cannot be undone.`)) return;
 
     try {
@@ -169,7 +170,7 @@ export default function DeckList() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDelete(deck.id, deck.name)}
+                    onClick={(e) => handleDelete(e, deck.id, deck.name)}
                   >
                     <Delete />
                   </IconButton>
