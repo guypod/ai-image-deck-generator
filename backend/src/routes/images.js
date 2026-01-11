@@ -268,8 +268,7 @@ router.post(
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.FLASH,
           aspectRatio: '16:9',
-          resolution: '2K',
-          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
+          resolution: '2K'
         });
       } else if (sourceImage.service === 'gemini-pro') {
         if (!process.env.GEMINI_API_KEY) {
@@ -279,8 +278,7 @@ router.post(
           apiKey: process.env.GEMINI_API_KEY,
           model: geminiNanoBanana.MODELS.PRO,
           aspectRatio: '16:9',
-          resolution: '2K',
-          referenceImages: entityImageBuffers.length > 0 ? entityImageBuffers : null
+          resolution: '2K'
         });
       } else {
         throw new Error(`Unknown service: ${sourceImage.service}`);
@@ -300,11 +298,17 @@ router.post(
       return imageMetadata;
     });
 
+    console.log(`[Tweak] Starting ${count} tweak task(s) with prompt: "${parsedPrompt}"`);
     const results = await executeInParallel(tasks);
 
     // Separate successful and failed results
     const successful = results.filter(r => r.status === 'success').map(r => r.data);
     const failed = results.filter(r => r.status === 'failed');
+
+    console.log(`[Tweak] Results: ${successful.length} successful, ${failed.length} failed`);
+    if (failed.length > 0) {
+      console.error(`[Tweak] Failures:`, failed.map(r => r.error));
+    }
 
     res.json({
       images: successful,

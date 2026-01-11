@@ -193,21 +193,13 @@ export async function generateImage(prompt, options = {}) {
  * @param {Buffer} sourceImage - Source image buffer
  * @param {string} editPrompt - Description of desired changes
  * @param {object} options - Generation options (same as generateImage)
- * @param {Array<{buffer: Buffer, label: string}>} options.referenceImages - Optional entity reference images
  * @returns {Promise<Buffer>} - Edited image buffer
  */
 export async function editImage(sourceImage, editPrompt, options = {}) {
-  const { referenceImages = null, ...otherOptions } = options;
-
-  // Combine source image (as "Source Image to Edit") with any entity reference images
-  const allReferenceImages = [
-    { buffer: sourceImage, label: 'Source Image to Edit' },
-    ...(referenceImages || [])
-  ];
-
+  // Use referenceImage (singular) which has proper edit semantics
   return generateImage(editPrompt, {
-    ...otherOptions,
-    referenceImages: allReferenceImages,
+    ...options,
+    referenceImage: sourceImage,
   });
 }
 
