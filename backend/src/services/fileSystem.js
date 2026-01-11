@@ -576,6 +576,7 @@ export async function updateSlide(deckId, slideId, updates) {
   if (updates.overrideVisualStyle !== undefined) slide.overrideVisualStyle = updates.overrideVisualStyle;
   if (updates.noImages !== undefined) slide.noImages = updates.noImages;
   if (updates.descriptionLocked !== undefined) slide.descriptionLocked = updates.descriptionLocked;
+  if (updates.noContext !== undefined) slide.noContext = updates.noContext;
   if (updates.sceneStart !== undefined) {
     slide.sceneStart = updates.sceneStart;
     // Scene starts must always have noImages=true
