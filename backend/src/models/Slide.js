@@ -79,6 +79,8 @@ export const slideSchema = Joi.object({
     .default(false),
   sceneStart: Joi.boolean()
     .default(false),
+  noContext: Joi.boolean()
+    .default(false),
   sceneVisualStyle: Joi.string()
     .max(1000)
     .allow('', null)
@@ -123,6 +125,8 @@ export const createSlideSchema = Joi.object({
     .default(false),
   sceneStart: Joi.boolean()
     .default(false),
+  noContext: Joi.boolean()
+    .default(false),
   sceneVisualStyle: Joi.string()
     .max(1000)
     .allow('', null)
@@ -155,6 +159,7 @@ export const updateSlideSchema = Joi.object({
   noImages: Joi.boolean(),
   descriptionLocked: Joi.boolean(),
   sceneStart: Joi.boolean(),
+  noContext: Joi.boolean(),
   sceneVisualStyle: Joi.string()
     .max(1000)
     .allow('', null)

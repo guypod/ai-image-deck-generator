@@ -58,6 +58,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
   const [noImages, setNoImages] = useState(false);
   const [descriptionLocked, setDescriptionLocked] = useState(false);
   const [sceneStart, setSceneStart] = useState(false);
+  const [noContext, setNoContext] = useState(false);
   const [sceneVisualStyle, setSceneVisualStyle] = useState('');
   const [variantCount, setVariantCount] = useState(2);
   const [service, setService] = useState('gemini-pro');
@@ -84,6 +85,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
     noImages: false,
     descriptionLocked: false,
     sceneStart: false,
+    noContext: false,
     sceneVisualStyle: '',
     unsavedChanges: false
   });
@@ -97,10 +99,11 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       noImages,
       descriptionLocked,
       sceneStart,
+      noContext,
       sceneVisualStyle,
       unsavedChanges
     };
-  }, [speakerNotes, imageDescription, overrideVisualStyle, noImages, descriptionLocked, sceneStart, sceneVisualStyle, unsavedChanges]);
+  }, [speakerNotes, imageDescription, overrideVisualStyle, noImages, descriptionLocked, sceneStart, noContext, sceneVisualStyle, unsavedChanges]);
 
   // Load slide data when slide changes OR slideId changes
   useEffect(() => {
@@ -111,6 +114,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
       setNoImages(slide.noImages || false);
       setDescriptionLocked(slide.descriptionLocked || false);
       setSceneStart(slide.sceneStart || false);
+      setNoContext(slide.noContext || false);
       setSceneVisualStyle(slide.sceneVisualStyle || '');
       setDescriptionHistory(slide.descriptionHistory || []);
       setHistoryIndex(null); // Reset to showing current description
@@ -136,6 +140,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           noImages: state.noImages,
           descriptionLocked: state.descriptionLocked,
           sceneStart: state.sceneStart,
+          noContext: state.noContext,
           sceneVisualStyle: state.sceneVisualStyle || null
         }).catch(err => {
           console.error('Failed to save on navigation:', err);
@@ -165,6 +170,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
           noImages,
           descriptionLocked,
           sceneStart,
+          noContext,
           sceneVisualStyle: sceneVisualStyle || null
         });
         setUnsavedChanges(false);
@@ -183,6 +189,7 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
         noImages,
         descriptionLocked,
         sceneStart,
+        noContext,
         sceneVisualStyle: sceneVisualStyle || null
       });
       setUnsavedChanges(false);
@@ -674,6 +681,24 @@ export default function SlideEditor({ slideData, deckId: deckIdProp, slideId: sl
                   sx={{ mt: 1 }}
                 />
               )}
+            </Box>
+
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1, borderLeft: 3, borderColor: 'grey.400' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={noContext}
+                    onChange={(e) => {
+                      setNoContext(e.target.checked);
+                      setUnsavedChanges(true);
+                    }}
+                  />
+                }
+                label="No Background Context"
+              />
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
+                When checked, description generation will not include previous slide text as context. Use this when the slide stands alone or when previous context would be misleading.
+              </Typography>
             </Box>
 
             {lastUsedPrompt && (
