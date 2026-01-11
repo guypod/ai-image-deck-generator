@@ -35,6 +35,8 @@ export const deckAPI = {
     api.delete(`/decks/${deckId}/entities/${entityName}`),
   getEntityImage: (deckId, entityName, filename) =>
     `${API_BASE_URL}/decks/${deckId}/entities/${entityName}/${filename}`,
+  exportSlide: (deckId, slideId, data) =>
+    api.post(`/decks/${deckId}/slides/${slideId}/export`, data),
 };
 
 // Slide API

@@ -14,11 +14,12 @@ import {
   DialogContentText,
   DialogActions,
   Snackbar,
+  TextField,
 } from '@mui/material';
-import { ArrowBack, Settings as SettingsIcon } from '@mui/icons-material';
+import { ArrowBack, Settings as SettingsIcon, CloudUpload as ExportIcon } from '@mui/icons-material';
 import { useDeck } from '../hooks/useDecks';
 import { useSlides } from '../hooks/useSlides';
-import { slideAPI } from '../services/api';
+import { slideAPI, deckAPI } from '../services/api';
 import SlidePanel from './SlidePanel';
 import SlideEditor from './SlideEditor';
 
@@ -34,6 +35,9 @@ export default function SlideDeckView() {
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [slideToDelete, setSlideToDelete] = useState(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportTitle, setExportTitle] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Sync local slides with hook slides
@@ -73,6 +77,72 @@ export default function SlideDeckView() {
         speakerNotes: '',
         imageDescription: '',
       });
+      setSelectedSlideId(newSlide.id);
+      setSearchParams({ slide: newSlide.id });
+    } catch (error) {
+      setSnackbar({ open: true, message: `Error creating slide: ${error.message}`, severity: 'error' });
+    }
+  };
+
+  // Add slide before selected slide
+  const handleAddSlideBefore = async (referenceSlideId) => {
+    try {
+      // Create new slide (will be added at end)
+      const newSlide = await createSlide({
+        speakerNotes: '',
+        imageDescription: '',
+      });
+
+      // Get current slide order
+      const slideIds = slides.map(s => s.id);
+
+      // Find position of reference slide
+      const refIndex = slideIds.indexOf(referenceSlideId);
+
+      if (refIndex === -1) {
+        throw new Error('Reference slide not found');
+      }
+
+      // Insert new slide before reference slide
+      slideIds.splice(refIndex, 0, newSlide.id);
+
+      // Reorder slides
+      await reorderSlides(slideIds);
+
+      // Select new slide
+      setSelectedSlideId(newSlide.id);
+      setSearchParams({ slide: newSlide.id });
+    } catch (error) {
+      setSnackbar({ open: true, message: `Error creating slide: ${error.message}`, severity: 'error' });
+    }
+  };
+
+  // Add slide after selected slide
+  const handleAddSlideAfter = async (referenceSlideId) => {
+    try {
+      // Create new slide (will be added at end)
+      const newSlide = await createSlide({
+        speakerNotes: '',
+        imageDescription: '',
+      });
+
+      // Get current slide order
+      const slideIds = slides.map(s => s.id);
+
+      // Find position of reference slide
+      const refIndex = slideIds.indexOf(referenceSlideId);
+
+      if (refIndex === -1) {
+        throw new Error('Reference slide not found');
+      }
+
+      // Insert new slide after reference slide
+      slideIds.splice(refIndex + 1, 0, newSlide.id);
+
+      // Reorder slides
+      await reorderSlides(slideIds);
+
+      // Select new slide
       setSelectedSlideId(newSlide.id);
       setSearchParams({ slide: newSlide.id });
     } catch (error) {
@@ -160,6 +230,43 @@ export default function SlideDeckView() {
     }
   };
 
+  // Export single slide
+  const handleExportSlide = () => {
+    if (!selectedSlideId) return;
+    const selectedSlide = slides.find(s => s.id === selectedSlideId);
+    const slideNumber = selectedSlide ? selectedSlide.order + 1 : 1;
+    setExportTitle(`${deck?.name || 'Slide'} - Slide ${slideNumber}`);
+    setExportDialogOpen(true);
+  };
+
+  const handleExportConfirm = async () => {
+    if (!selectedSlideId) return;
+
+    setExporting(true);
+    try {
+      const response = await deckAPI.exportSlide(deckId, selectedSlideId, { title: exportTitle });
+      setExportDialogOpen(false);
+      setExportTitle('');
+      setSnackbar({
+        open: true,
+        message: 'Slide exported successfully! Opening in new tab...',
+        severity: 'success'
+      });
+
+      // Open the Google Slides presentation in a new tab
+      window.open(response.data.url, '_blank');
+    } catch (error) {
+      setSnackbar({ open: true, message: `Export failed: ${error.message}`, severity: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCancel = () => {
+    setExportDialogOpen(false);
+    setExportTitle('');
+  };
+
   if (deckLoading || slidesLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
@@ -213,6 +320,17 @@ export default function SlideDeckView() {
           {deck.name}
         </Typography>
 
+        <Button
+          startIcon={<ExportIcon />}
+          onClick={handleExportSlide}
+          disabled={!selectedSlideId}
+          size="small"
+          variant="outlined"
+          sx={{ mr: 1 }}
+        >
+          Export Slide
+        </Button>
+
         <IconButton
           onClick={() => navigate(`/decks/${deckId}`)}
           size="small"
@@ -231,6 +349,8 @@ export default function SlideDeckView() {
           onSelectSlide={handleSelectSlide}
           onDeleteSlide={handleDeleteSlide}
           onAddSlide={handleAddSlide}
+          onAddSlideBefore={handleAddSlideBefore}
+          onAddSlideAfter={handleAddSlideAfter}
           onReorderSlides={handleReorderSlides}
           onToggleNoImages={handleToggleNoImages}
           deckId={deckId}
@@ -298,6 +418,43 @@ export default function SlideDeckView() {
           <Button onClick={cancelDelete}>Cancel</Button>
           <Button onClick={confirmDelete} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Export Slide Dialog */}
+      <Dialog
+        open={exportDialogOpen}
+        onClose={handleExportCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Slide to Google Slides</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This will create a new Google Slides presentation with only the selected slide.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Presentation Title"
+            value={exportTitle}
+            onChange={(e) => setExportTitle(e.target.value)}
+            placeholder="Enter presentation title..."
+            disabled={exporting}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleExportCancel} disabled={exporting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleExportConfirm}
+            variant="contained"
+            disabled={!exportTitle.trim() || exporting}
+            startIcon={exporting ? <CircularProgress size={20} /> : <ExportIcon />}
+          >
+            {exporting ? 'Exporting...' : 'Export'}
           </Button>
         </DialogActions>
       </Dialog>

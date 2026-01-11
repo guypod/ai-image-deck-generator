@@ -10,6 +10,8 @@ export default function SlidePanel({
   onSelectSlide,
   onDeleteSlide,
   onAddSlide,
+  onAddSlideBefore,
+  onAddSlideAfter,
   onReorderSlides,
   onToggleNoImages,
   deckId,
@@ -124,6 +126,8 @@ export default function SlidePanel({
                           isSelected={selectedSlideId === slide.id}
                           onSelect={() => onSelectSlide(slide.id)}
                           onDelete={onDeleteSlide}
+                          onAddBefore={() => onAddSlideBefore(slide.id)}
+                          onAddAfter={() => onAddSlideAfter(slide.id)}
                           onToggleNoImages={onToggleNoImages}
                           deckId={deckId}
                           isDragging={snapshot.isDragging}

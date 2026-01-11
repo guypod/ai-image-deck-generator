@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Typography, Checkbox, FormControlLabel, Chip } from '@mui/material';
-import { Delete as DeleteIcon, DragIndicator, ImageNotSupported, FiberManualRecord } from '@mui/icons-material';
+import { Box, IconButton, Typography, Checkbox, FormControlLabel, Chip, Tooltip } from '@mui/material';
+import { Delete as DeleteIcon, DragIndicator, ImageNotSupported, FiberManualRecord, Add as AddIcon } from '@mui/icons-material';
 
 export default function SlideThumbnail({
   slide,
@@ -8,6 +8,8 @@ export default function SlideThumbnail({
   isSelected,
   onSelect,
   onDelete,
+  onAddBefore,
+  onAddAfter,
   onToggleNoImages,
   deckId,
   isDragging = false,
@@ -24,6 +26,16 @@ export default function SlideThumbnail({
     e.stopPropagation(); // Prevent slide selection
     e.preventDefault(); // Prevent default checkbox behavior
     onToggleNoImages?.(slide.id, slide.noImages);
+  };
+
+  const handleAddBefore = (e) => {
+    e.stopPropagation(); // Prevent slide selection
+    onAddBefore?.();
+  };
+
+  const handleAddAfter = (e) => {
+    e.stopPropagation(); // Prevent slide selection
+    onAddAfter?.();
   };
 
   // Get thumbnail image URL
@@ -84,6 +96,56 @@ export default function SlideThumbnail({
       >
         <DragIndicator fontSize="small" />
       </Box>
+
+      {/* Add Before Button */}
+      {isHovered && (
+        <Tooltip title="Add slide before">
+          <IconButton
+            onClick={handleAddBefore}
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 36,
+              zIndex: 2,
+              bgcolor: 'primary.main',
+              color: 'white',
+              width: 24,
+              height: 24,
+              '&:hover': {
+                bgcolor: 'primary.dark',
+              },
+            }}
+          >
+            <AddIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
+
+      {/* Add After Button */}
+      {isHovered && (
+        <Tooltip title="Add slide after">
+          <IconButton
+            onClick={handleAddAfter}
+            size="small"
+            sx={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              zIndex: 2,
+              bgcolor: 'primary.main',
+              color: 'white',
+              width: 24,
+              height: 24,
+              '&:hover': {
+                bgcolor: 'primary.dark',
+              },
+            }}
+          >
+            <AddIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
 
       {/* Slide Number Badge */}
       <Box

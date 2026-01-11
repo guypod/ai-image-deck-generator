@@ -2,8 +2,10 @@ import express from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validation.js';
 import { createSlideSchema, updateSlideSchema, reorderSlidesSchema } from '../models/Slide.js';
+import { exportDeckSchema } from '../models/Settings.js';
 import * as fileSystem from '../services/fileSystem.js';
 import * as openaiDescriptions from '../services/openaiDescriptions.js';
+import * as googleSlidesExport from '../services/googleSlidesExport.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -176,6 +178,34 @@ router.delete('/:slideId/images/:imageId', asyncHandler(async (req, res) => {
   const { deckId, slideId, imageId } = req.params;
   const slide = await fileSystem.deleteImage(deckId, slideId, imageId);
   res.json(slide);
+}));
+
+/**
+ * POST /api/decks/:deckId/slides/:slideId/export
+ * Export single slide to Google Slides
+ */
+router.post('/:slideId/export', validate(exportDeckSchema), asyncHandler(async (req, res) => {
+  const { deckId, slideId } = req.params;
+  const { title } = req.body;
+
+  // Get deck, single slide, and settings
+  const deck = await fileSystem.getDeck(deckId);
+  const slide = await fileSystem.getSlide(deckId, slideId);
+  const settings = await fileSystem.getSettings();
+
+  // Export single slide as an array with one element
+  const result = await googleSlidesExport.exportToGoogleSlides(
+    deck,
+    [slide], // Single slide in array
+    deckId,
+    fileSystem.getStorageDir(),
+    settings.googleSlides?.credentials,
+    settings.googleSlides?.templateSlideUrl,
+    title || `${deck.name} - Slide ${slide.order + 1}`,
+    settings.googleSlides?.templateSlideIndex || 1
+  );
+
+  res.json(result);
 }));
 
 export default router;
