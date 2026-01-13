@@ -471,6 +471,16 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
   // Get storage directory
   const storageDir = fileSystem.getStorageDir();
 
+  // Get PowerPoint template path if configured
+  let localTemplatePath = null;
+  let templateSlideIndex = 1;
+
+  if (settings.powerPoint?.templateFilename) {
+    localTemplatePath = await fileSystem.getPowerPointTemplatePath();
+    templateSlideIndex = settings.powerPoint?.templateSlideIndex || 1;
+    console.log(`Using PowerPoint template: ${localTemplatePath}, slide index: ${templateSlideIndex}`);
+  }
+
   console.log(`Starting PowerPoint export for deck ${deckId}...`);
 
   // Export to PowerPoint buffer
@@ -480,7 +490,11 @@ router.post('/:deckId/export-pptx', validate(exportDeckSchema), asyncHandler(asy
     deckId,
     storageDir,
     exportTitle,
-    { fromSlideIndex }
+    {
+      fromSlideIndex,
+      localTemplatePath,
+      templateSlideIndex
+    }
   );
 
   // Set headers for file download
